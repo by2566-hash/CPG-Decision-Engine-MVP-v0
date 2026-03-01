@@ -1,0 +1,9 @@
+{
+  "run_id": "job_7d9e41e3",
+  "status": "SUCCEEDED",
+  "mode": "mock",
+  "dataset_path": null,
+  "started_at": "2026-03-01T08:16:20.909986",
+  "finished_at": "2026-03-01T08:17:08.858056",
+  "error": null
+}
