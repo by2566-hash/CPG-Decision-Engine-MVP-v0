@@ -1,7 +1,7 @@
 import os
 import uuid
 from typing import Optional, Dict, Any
-from fastapi import FastAPI, BackgroundTasks, HTTPException, Header, Depends
+from fastapi import FastAPI, HTTPException, Header, Depends
 from fastapi.responses import FileResponse, JSONResponse
 from pydantic import BaseModel
 

@@ -18,7 +18,7 @@ if os.path.exists(audit_file):
 def run():
     print("Loading 30 PASS Action Cards...")
     cards_df = pd.read_csv("./OUTPUT/action_cards_v0.csv")
-    passed_cards = cards_df[cards_df["policy_passed"] == True].head(30).to_dict(orient="records")
+    passed_cards = cards_df[cards_df["policy_passed"]].head(30).to_dict(orient="records")
     
     validator = LLMSafetyGateway()
     

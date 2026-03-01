@@ -32,7 +32,7 @@ class LLMSafetyGateway:
         try:
             with open(channel_rules_path, "r") as f:
                 self.channel_rules = json.load(f)
-        except:
+        except Exception:
             self.channel_rules = {
                 "sms": {"max_length": 160, "required_elements": []},
                 "email": {"max_length": 500, "required_elements": []}
@@ -41,7 +41,7 @@ class LLMSafetyGateway:
         try:
             with open(banned_phrases_path, "r") as f:
                 self.banned_phrases = [line.strip().lower() for line in f if line.strip()]
-        except:
+        except Exception:
             self.banned_phrases = ["guarantee", "spam", "100% free"]
             
         self.allowed_placeholders = {"{PRODUCT}", "{DISCOUNT_TEXT}", "{CTA}", "{SEGMENT_LABEL}"}

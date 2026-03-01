@@ -61,7 +61,7 @@ def generate_mock_llm_response(action_card: dict, inject_error=None) -> str:
 def run_batch(mock=True):
     print("Loading PASS Action Cards from Policy Engine...")
     cards = pd.read_csv(f"{OUTPUT_DIR}/action_cards_v0.csv")
-    passed_cards = cards[cards["policy_passed"] == True].to_dict(orient="records")
+    passed_cards = cards[cards["policy_passed"]].to_dict(orient="records")
     
     print(f"Found {len(passed_cards)} valid trade orders for rendering.")
     

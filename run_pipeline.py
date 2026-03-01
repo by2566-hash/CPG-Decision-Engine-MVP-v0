@@ -4,7 +4,6 @@ import sys
 import json
 from datetime import datetime
 import uuid
-import uuid
 
 # Import the existing modules
 # We dynamically patch their OUTPUT_DIR to funnel all artifacts to the run folder.
@@ -91,7 +90,7 @@ def execute_pipeline(args):
         
         # Step 4: LLM Explainability Bouncer (Renderer)
         print("\n[4/4] Executing LLM Bouncer Validator & Representation...")
-        is_mock = (args.mode == "mock")
+        # is_mock flag unused here in runner proxy
         # run_pipeline_harness.py acts as the wrapper for step 6 metric generation.
         # We invoke the underlying runner. 
         # Note: the harness originally loaded action_cards_v0.csv hardcoded. 
@@ -102,7 +101,7 @@ def execute_pipeline(args):
         # We overwrite that hardcoded path in memory.
         import pandas as pd
         def patched_run():
-            cards_df = pd.read_csv(os.path.join(outputs_dir, "action_cards_v0.csv"))
+            # cards_df variable removed to pass ruff lint
             # The rest of the logic inside the harness... we can call it directly, or adapt.
             # To ensure compatibility with the unmodified script, we just execute its run() method,
             # but we must mock pd.read_csv globally inside that module.

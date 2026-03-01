@@ -1,0 +1,9 @@
+{
+  "run_id": "job_0a1725f1",
+  "status": "SUCCEEDED",
+  "mode": "mock",
+  "dataset_path": "./tests/fixtures",
+  "started_at": "2026-03-01T06:25:43.446096",
+  "finished_at": "2026-03-01T06:25:48.085772",
+  "error": null
+}

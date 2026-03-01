@@ -120,7 +120,7 @@ def build_action_cards_dry_run():
     cards_df = pd.DataFrame(action_cards)
     
     # Select 3 diverse samples for the Dry Run
-    sample_pass = cards_df[cards_df['policy_passed'] == True].head(1)
+    sample_pass = cards_df[cards_df['policy_passed']].head(1)
     
     # Find one blocked by margin
     sample_margin_block = cards_df[cards_df['constraints_applied'].astype(str).str.contains('margin_floor\', \'value\': 0.15, \'check\': \'FAIL')].head(1)
@@ -140,7 +140,7 @@ def build_action_cards_dry_run():
     cards_df.to_csv(f"{OUTPUT_DIR}/action_cards_v0.csv", index=False)
     
     # Print summary stats
-    passed_count = len(cards_df[cards_df['policy_passed'] == True])
+    passed_count = len(cards_df[cards_df['policy_passed']])
     failed_count = len(cards_df) - passed_count
     
     print("\n=============================================")
@@ -151,7 +151,7 @@ def build_action_cards_dry_run():
     print(f"Total FAIL: {failed_count}")
     
     # Very rough block reason counts
-    blocks = cards_df[cards_df['policy_passed'] == False]
+    blocks = cards_df[~cards_df['policy_passed']]
     margin_fails = sum(blocks['constraints_applied'].astype(str).str.contains('margin_floor\', \'value\': 0.15, \'check\': \'FAIL'))
     inv_fails = sum(blocks['constraints_applied'].astype(str).str.contains('inventory_floor\', \'value\': 50, \'check\': \'FAIL'))
     print("\nTop Block Reasons:")
