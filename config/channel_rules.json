@@ -1,0 +1,10 @@
+{
+  "sms": {
+    "max_length": 160,
+    "required_elements": ["discount_pct", "product_id"]
+  },
+  "email": {
+    "max_length": 500,
+    "required_elements": ["discount_pct", "product_name", "cta_link"]
+  }
+}

@@ -1,0 +1,103 @@
+{
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "$id": "https://example.com/cpg-decision-engine/llm_render_output.schema.json",
+    "title": "LLM Render Output Schema",
+    "description": "Strict JSON schema enforcing the output structure required from the LLM Explainer in Step 6 (Bouncer Pattern).",
+    "type": "object",
+    "properties": {
+        "action_trade_id": {
+            "type": "string",
+            "description": "The unique ID matching the input ActionCard from the Policy Engine."
+        },
+        "policy_echo": {
+            "type": "object",
+            "description": "Echo back the hard constrained policy to ensure the LLM hasn't hallucinated a different offer mathematically.",
+            "properties": {
+                "action_type": {
+                    "type": "string",
+                    "enum": [
+                        "DISCOUNT",
+                        "BUNDLE",
+                        "NO_ACTION"
+                    ]
+                },
+                "discount_pct": {
+                    "type": "number",
+                    "minimum": 0.0,
+                    "maximum": 1.0
+                }
+            },
+            "required": [
+                "action_type",
+                "discount_pct"
+            ],
+            "additionalProperties": false
+        },
+        "grounding": {
+            "type": "object",
+            "description": "The specific evidence array the LLM used to construct the logic.",
+            "properties": {
+                "facts_used": {
+                    "type": "array",
+                    "items": {
+                        "type": "object",
+                        "properties": {
+                            "field": {
+                                "type": "string"
+                            },
+                            "value": {
+                                "type": [
+                                    "string",
+                                    "number",
+                                    "boolean"
+                                ]
+                            }
+                        },
+                        "required": [
+                            "field",
+                            "value"
+                        ],
+                        "additionalProperties": false
+                    }
+                }
+            },
+            "required": [
+                "facts_used"
+            ],
+            "additionalProperties": false
+        },
+        "copy": {
+            "type": "object",
+            "description": "The generated customer-facing text.",
+            "properties": {
+                "channel": {
+                    "type": "string",
+                    "enum": [
+                        "sms",
+                        "email"
+                    ]
+                },
+                "subject": {
+                    "type": "string",
+                    "description": "Optional subject line (required for email, null/ignored for SMS)."
+                },
+                "body_template": {
+                    "type": "string",
+                    "description": "The actual message text containing facts."
+                }
+            },
+            "required": [
+                "channel",
+                "body_template"
+            ],
+            "additionalProperties": false
+        }
+    },
+    "required": [
+        "action_trade_id",
+        "policy_echo",
+        "grounding",
+        "copy"
+    ],
+    "additionalProperties": false
+}

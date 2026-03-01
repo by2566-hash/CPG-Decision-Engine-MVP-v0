@@ -1,0 +1,27 @@
+# Environments
+.env
+.venv
+env/
+venv/
+ENV/
+env.bak/
+venv.bak/
+.Python
+
+# Mac specific
+.DS_Store
+
+# Huge Data Directories (DO NOT COMMIT)
+# The raw Instacart data is too large and outputs recreate on-the-fly
+DATASETS/*.csv
+!DATASETS/*.pdf
+OUTPUT/*.csv
+outputs/*.jsonl
+outputs/*.md
+logs/*.jsonl
+
+# Python artifacts
+__pycache__/
+*.py[cod]
+*$py.class
+.pytest_cache/

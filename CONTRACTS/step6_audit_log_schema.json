@@ -1,0 +1,63 @@
+{
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "$id": "https://example.com/cpg-decision-engine/step6_audit_log.schema.json",
+    "title": "Step 6 Bouncer Audit Log Schema",
+    "description": "Strict JSON schema defining the event structure logged when an LLM 'trade order' passes or fails the 4 validation gates.",
+    "type": "object",
+    "properties": {
+        "action_trade_id": {
+            "type": "string",
+            "description": "The unique ID matching the input ActionCard."
+        },
+        "timestamp_iso": {
+            "type": "string",
+            "format": "date-time"
+        },
+        "validation_result": {
+            "type": "string",
+            "enum": [
+                "PASS",
+                "REJECT",
+                "FALLBACK_USED"
+            ]
+        },
+        "gate_errors": {
+            "type": "array",
+            "description": "A list of strings explaining which of the 4 gates failed (empty if PASS).",
+            "items": {
+                "type": "string"
+            }
+        },
+        "fallback_used": {
+            "type": "boolean",
+            "description": "True if the LLM hallucinated and the system reverted to the deterministic string."
+        },
+        "final_copy_source": {
+            "type": "string",
+            "enum": [
+                "LLM_GENERATED",
+                "DETERMINISTIC_FALLBACK"
+            ]
+        },
+        "latency_ms": {
+            "type": "integer",
+            "description": "Time taken by the LLM inference call."
+        },
+        "input_tokens": {
+            "type": "integer"
+        },
+        "output_tokens": {
+            "type": "integer"
+        }
+    },
+    "required": [
+        "action_trade_id",
+        "timestamp_iso",
+        "validation_result",
+        "gate_errors",
+        "fallback_used",
+        "final_copy_source",
+        "latency_ms"
+    ],
+    "additionalProperties": false
+}

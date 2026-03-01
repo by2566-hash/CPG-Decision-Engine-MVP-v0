@@ -1,0 +1,315 @@
+{
+    "ontology_version": "v0",
+    "description": "Minimal KG Ontology for CPG Decision Engine MVP",
+    "nodes": [
+        {
+            "label": "Customer",
+            "description": "The user/purchaser entity.",
+            "properties": {
+                "id": {
+                    "type": "string",
+                    "required": true,
+                    "source": "customers.user_id"
+                },
+                "total_orders": {
+                    "type": "integer",
+                    "required": true,
+                    "source": "customers.total_orders"
+                },
+                "m_proxy_value": {
+                    "type": "float",
+                    "required": true,
+                    "source": "customers.m_proxy_value"
+                }
+            }
+        },
+        {
+            "label": "Product",
+            "description": "The physical CPG item being purchased.",
+            "properties": {
+                "id": {
+                    "type": "string",
+                    "required": true,
+                    "source": "products.product_id"
+                },
+                "name": {
+                    "type": "string",
+                    "required": true,
+                    "source": "products.product_name"
+                },
+                "department_id": {
+                    "type": "string",
+                    "required": true,
+                    "source": "products.department_id"
+                },
+                "aisle_id": {
+                    "type": "string",
+                    "required": true,
+                    "source": "products.aisle_id"
+                },
+                "mock_inventory": {
+                    "type": "integer",
+                    "required": true,
+                    "source": "products.mock_inventory"
+                },
+                "avg_replenishment_days": {
+                    "type": "float",
+                    "required": true,
+                    "source": "products.avg_replenishment_days"
+                }
+            }
+        },
+        {
+            "label": "Order",
+            "description": "The transaction envelope.",
+            "properties": {
+                "id": {
+                    "type": "string",
+                    "required": true,
+                    "source": "orders.order_id"
+                },
+                "user_id": {
+                    "type": "string",
+                    "required": true,
+                    "source": "orders.user_id"
+                },
+                "order_ts": {
+                    "type": "timestamp",
+                    "required": true,
+                    "source": "orders.order_ts"
+                },
+                "order_number": {
+                    "type": "integer",
+                    "required": true,
+                    "source": "orders.order_number"
+                }
+            }
+        },
+        {
+            "label": "Segment",
+            "description": "The defined RFM behavioral group.",
+            "properties": {
+                "id": {
+                    "type": "string",
+                    "required": true,
+                    "note": "segment_id = {run_id}:{label}"
+                },
+                "run_id": {
+                    "type": "string",
+                    "required": true
+                },
+                "as_of_date": {
+                    "type": "date",
+                    "required": true
+                },
+                "label": {
+                    "type": "string",
+                    "required": true,
+                    "source": "customers.rfm_segment"
+                },
+                "definition": {
+                    "type": "json",
+                    "required": false,
+                    "note": "quantile thresholds / rules summary"
+                }
+            }
+        },
+        {
+            "label": "RiskScore",
+            "description": "The computed evaluation of replenishment overdue time. Prefer user x product level when possible; allow fallback to category level if product-level is sparse.",
+            "properties": {
+                "id": {
+                    "type": "string",
+                    "required": true,
+                    "note": "risk_id = {run_id}:{customer_id}:{target_product_id} (or category id when product_id not present)"
+                },
+                "run_id": {
+                    "type": "string",
+                    "required": true
+                },
+                "as_of_date": {
+                    "type": "date",
+                    "required": true
+                },
+                "overdue_ratio": {
+                    "type": "float",
+                    "required": true
+                },
+                "last_purchase_days_ago": {
+                    "type": "integer",
+                    "required": true,
+                    "note": "Computed from difference between as_of_date and latest purchase order_ts"
+                },
+                "target_product_id": {
+                    "type": "string",
+                    "required": false
+                },
+                "target_category_id": {
+                    "type": "string",
+                    "required": false
+                }
+            }
+        },
+        {
+            "label": "ActionCard",
+            "description": "The specific generated trade/countermeasure.",
+            "properties": {
+                "id": {
+                    "type": "string",
+                    "required": true
+                },
+                "run_id": {
+                    "type": "string",
+                    "required": true
+                },
+                "policy_version": {
+                    "type": "string",
+                    "required": true
+                },
+                "action_type": {
+                    "type": "string",
+                    "required": true
+                },
+                "parameter_value": {
+                    "type": "float",
+                    "required": true
+                },
+                "policy_passed": {
+                    "type": "boolean",
+                    "required": true
+                },
+                "evidence": {
+                    "type": "json",
+                    "required": true
+                },
+                "constraints_applied": {
+                    "type": "json",
+                    "required": true
+                },
+                "expected_value_proxy": {
+                    "type": "float",
+                    "required": false
+                },
+                "llm_explanation": {
+                    "type": "string",
+                    "required": true
+                }
+            }
+        },
+        {
+            "label": "CampaignEvent",
+            "description": "The resulting issuance stub for closed-loop auditing.",
+            "properties": {
+                "id": {
+                    "type": "string",
+                    "required": true
+                },
+                "run_id": {
+                    "type": "string",
+                    "required": true
+                },
+                "event_type": {
+                    "type": "string",
+                    "required": true,
+                    "enum": [
+                        "ACTION_ISSUED"
+                    ]
+                },
+                "event_ts": {
+                    "type": "timestamp",
+                    "required": true,
+                    "source": "campaign_events.event_ts (fallback to EMITTED_EVENT.emitted_at)"
+                }
+            }
+        }
+    ],
+    "edges": [
+        {
+            "label": "PLACED",
+            "source": "Customer",
+            "target": "Order",
+            "properties": {
+                "order_number": {
+                    "type": "integer",
+                    "required": true,
+                    "source": "orders.order_number"
+                }
+            }
+        },
+        {
+            "label": "HAS_ITEM",
+            "source": "Order",
+            "target": "Product",
+            "properties": {
+                "qty": {
+                    "type": "integer",
+                    "required": true
+                },
+                "reordered_flag": {
+                    "type": "boolean",
+                    "required": true
+                }
+            }
+        },
+        {
+            "label": "IN_SEGMENT",
+            "source": "Customer",
+            "target": "Segment",
+            "properties": {
+                "run_id": {
+                    "type": "string",
+                    "required": true
+                },
+                "as_of_date": {
+                    "type": "date",
+                    "required": true
+                }
+            }
+        },
+        {
+            "label": "HAS_RISK",
+            "source": "Customer",
+            "target": "RiskScore",
+            "properties": {
+                "run_id": {
+                    "type": "string",
+                    "required": true
+                },
+                "calculated_on": {
+                    "type": "date",
+                    "required": true
+                }
+            }
+        },
+        {
+            "label": "RECOMMENDED_ACTION",
+            "source": "RiskScore",
+            "target": "ActionCard",
+            "properties": {
+                "run_id": {
+                    "type": "string",
+                    "required": true
+                },
+                "confidence_score": {
+                    "type": "float",
+                    "required": false
+                }
+            }
+        },
+        {
+            "label": "EMITTED_EVENT",
+            "source": "ActionCard",
+            "target": "CampaignEvent",
+            "properties": {
+                "run_id": {
+                    "type": "string",
+                    "required": true
+                },
+                "emitted_at": {
+                    "type": "timestamp",
+                    "required": true
+                }
+            }
+        }
+    ]
+}
