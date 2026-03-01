@@ -88,12 +88,12 @@ def run():
         for t in final_targets:
             f.write(json.dumps(t) + "\n")
             
-    # Compute percentages
-    schema_pass_rate = schema_passes / total
-    policy_pass_rate = policy_consistency_passes / total
-    grounding_reject_rate = grounding_rejects / total
-    overall_pass_rate = overall_llm_passes / total
-    fallback_rate = fallback_uses / total
+    # Compute percentages safely
+    schema_pass_rate = schema_passes / total if total > 0 else 0.0
+    policy_pass_rate = policy_consistency_passes / total if total > 0 else 0.0
+    grounding_reject_rate = grounding_rejects / total if total > 0 else 0.0
+    overall_pass_rate = overall_llm_passes / total if total > 0 else 0.0
+    fallback_rate = fallback_uses / total if total > 0 else 0.0
     
     top_errors = Counter(all_error_codes).most_common(3)
     

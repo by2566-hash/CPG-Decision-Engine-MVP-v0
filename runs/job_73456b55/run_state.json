@@ -1,0 +1,9 @@
+{
+  "run_id": "job_73456b55",
+  "status": "FAILED",
+  "mode": "mock",
+  "dataset_path": "./tests/fixtures",
+  "started_at": "2026-03-01T06:35:04.891336",
+  "finished_at": null,
+  "error": "Exit Code 1: /Users/yubo/Documents/worksapce/MVP/compute_rfm.py:74: SettingWithCopyWarning: \nA value is trying to be set on a copy of a slice from a DataFrame.\nTry using .loc[row_indexer,col_indexer] = value instead\n\nSee the caveats in the documentation: https://pandas.pydata.org/pandas-docs/stable/user_guide/indexing.html#returning-a-view-versus-a-copy\n  orders_canonical['order_ts'] = orders_canonical.apply(lambda row: row['order_ts'] - user_offset(row['user_id']), axis=1)"
+}

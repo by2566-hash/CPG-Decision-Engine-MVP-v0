@@ -1,0 +1,3 @@
+user_id,total_orders,recency_days,m_proxy_value,as_of_date,R_score,F_score,M_score,RFM_Cell,rfm_segment
+201,3,52,3,2023-12-31,1,5,5,155,High-Value At-Risk
+202,2,30,2,2023-12-31,5,1,1,511,New / Promising

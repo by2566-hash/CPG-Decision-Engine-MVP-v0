@@ -1,0 +1,18 @@
+{
+  "run_id": "job_73456b55",
+  "mode": "mock",
+  "status": "FAILED",
+  "timestamps": {
+    "start": "2026-03-01T01:35:05.615636",
+    "end": "2026-03-01T01:35:05.660511"
+  },
+  "metrics_summary": {},
+  "artifact_paths": {
+    "run_dir": "runs/job_73456b55",
+    "outputs_dir": "runs/job_73456b55/outputs",
+    "logs_dir": "runs/job_73456b55/logs"
+  },
+  "errors": [
+    "division by zero"
+  ]
+}
