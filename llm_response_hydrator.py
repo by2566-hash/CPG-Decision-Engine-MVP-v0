@@ -1,6 +1,6 @@
 import json
-from step6_fallback_templates import get_fallback_copy
-from step6_audit_logger import log_audit_event
+from deterministic_fallback_engine import get_fallback_copy
+from telemetry_audit_logger import log_audit_event
 
 def process_action_card(action_card: dict, llm_response_text: str, validator, mock_latency_ms: int = 150):
     """

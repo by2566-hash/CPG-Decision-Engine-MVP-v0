@@ -27,7 +27,7 @@ class ErrorCodes:
     E_COPY_CHANNEL_REQUIREMENT_FAIL = "E_COPY_CHANNEL_REQUIREMENT_FAIL"
 
 
-class BouncerValidator:
+class LLMSafetyGateway:
     def __init__(self, channel_rules_path="config/channel_rules.json", banned_phrases_path="config/banned_phrases.txt"):
         try:
             with open(channel_rules_path, "r") as f:

@@ -65,7 +65,7 @@ python3 policy_engine.py
 #### 4. The LLM Rendering Harness (Bouncer Pattern)
 Runs the generated Action Cards through the mock LLM renderer. Deliberately injects a ~30% hallucination rate (inflated discounts, missing placeholders, banned words) to demonstrate the 4-Gate Validator catching errors and gracefully falling back to deterministic templates.
 ```bash
-python3 run_step6_demo.py
+python3 run_pipeline_harness.py
 ```
 *Outputs:*
 - `outputs/final_action_cards_with_copy.jsonl` (The final deployable payload)

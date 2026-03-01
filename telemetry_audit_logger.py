@@ -2,7 +2,7 @@ import json
 import os
 from datetime import datetime, timezone
 
-AUDIT_LOG_FILE = "logs/step6_audit.jsonl"
+AUDIT_LOG_FILE = "logs/telemetry_audit.jsonl"
 
 def log_audit_event(
     action_trade_id: str,

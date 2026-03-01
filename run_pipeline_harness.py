@@ -2,16 +2,16 @@ import pandas as pd
 import json
 import os
 from collections import Counter
-from step6_bouncer_validator import BouncerValidator, ErrorCodes
-from step6_post_processor import process_action_card
-from step6_llm_renderer import generate_mock_llm_response
+from llm_safety_gateway import LLMSafetyGateway, ErrorCodes
+from llm_response_hydrator import process_action_card
+from llm_explainability_renderer import generate_mock_llm_response
 
 OUTPUT_DIR = "./outputs"
 os.makedirs(OUTPUT_DIR, exist_ok=True)
 os.makedirs("logs", exist_ok=True)
 
 # Delete existing audit log to start fresh for the 30 count
-audit_file = "logs/step6_audit.jsonl"
+audit_file = "logs/telemetry_audit.jsonl"
 if os.path.exists(audit_file):
     os.remove(audit_file)
 
@@ -20,7 +20,7 @@ def run():
     cards_df = pd.read_csv("./OUTPUT/action_cards_v0.csv")
     passed_cards = cards_df[cards_df["policy_passed"] == True].head(30).to_dict(orient="records")
     
-    validator = BouncerValidator()
+    validator = LLMSafetyGateway()
     
     # Tracking for metrics
     total = len(passed_cards)
@@ -115,12 +115,12 @@ def run():
         for code, count in top_errors:
             md_content += f"- **{code}**: {count} occurrences\n"
             
-    with open(f"{OUTPUT_DIR}/step6_metrics.md", "w") as f:
+    with open(f"{OUTPUT_DIR}/llm_gateway_metrics.md", "w") as f:
         f.write(md_content)
         
     print(f"Harness complete. Processed {total} cards.")
     print(f"Results written to {out_jsonl}")
-    print(f"Metrics written to {OUTPUT_DIR}/step6_metrics.md")
+    print(f"Metrics written to {OUTPUT_DIR}/llm_gateway_metrics.md")
     print(f"Audit log updated at {audit_file}")
 
 if __name__ == "__main__":

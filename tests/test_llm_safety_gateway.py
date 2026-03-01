@@ -1,11 +1,11 @@
 import pytest
 import json
-from step6_bouncer_validator import BouncerValidator, ErrorCodes
+from llm_safety_gateway import LLMSafetyGateway, ErrorCodes
 
 @pytest.fixture
 def validator():
     # Use default configs as fallback for tests if files don't exist
-    return BouncerValidator()
+    return LLMSafetyGateway()
 
 @pytest.fixture
 def base_action_card():

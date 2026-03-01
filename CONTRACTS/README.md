@@ -10,7 +10,7 @@ This directory contains the strict schemas guiding the interface between the det
     *   **Gate 1 (Format):** Validates the LLM string as syntactically correct JSON matching this exact schema (`additionalProperties: false`).
     *   **Gate 2 (Fact Check):** Extracts the `policy_echo` and compares it to the original Policy Engine payload to ensure the model didn't hallucinate a better deal.
 
-### 2. `step6_audit_log_schema.json`
+### 2. `telemetry_audit_log_schema.json`
 *   **Purpose:** The event telemetry contract documenting the life-cycle of every Action Card that enters the Step 6 compiler.
 *   **Usage in Gates:**
     *   Created upon ingestion of the LLM output.

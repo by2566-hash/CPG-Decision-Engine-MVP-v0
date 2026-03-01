@@ -1,8 +1,8 @@
 import json
 import argparse
 import pandas as pd
-from step6_bouncer_validator import BouncerValidator
-from step6_post_processor import process_action_card
+from llm_safety_gateway import LLMSafetyGateway
+from llm_response_hydrator import process_action_card
 
 OUTPUT_DIR = "./OUTPUT"
 
@@ -65,7 +65,7 @@ def run_batch(mock=True):
     
     print(f"Found {len(passed_cards)} valid trade orders for rendering.")
     
-    validator = BouncerValidator()
+    validator = LLMSafetyGateway()
     final_targets = []
     
     for idx, card in enumerate(passed_cards):
@@ -101,7 +101,7 @@ def run_batch(mock=True):
     print(f"LLM Copies Allowed (PASS): {passed}")
     print(f"Hallucinations Rejected (FALLBACK): {fallback}")
     print(f"Saved to {out_file}")
-    print("Audit Log written to logs/step6_audit.jsonl")
+    print("Audit Log written to logs/telemetry_audit.jsonl")
 
 
 if __name__ == "__main__":
