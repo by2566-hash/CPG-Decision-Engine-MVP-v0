@@ -11,7 +11,7 @@ services:
       - "8000:8000"
     environment:
       - RUNNER_API_KEY=${RUNNER_API_KEY:-dev_mvp_key_001}
-      - DISABLE_SECURITY=${DISABLE_SECURITY:-false}
+      - DISABLE_SECURITY=${DISABLE_SECURITY:-true}
     volumes:
       # Mount runs to persist outputs locally on host
       - ./runs:/app/runs
