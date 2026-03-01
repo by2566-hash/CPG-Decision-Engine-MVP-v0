@@ -64,9 +64,7 @@ def execute_pipeline(args):
         # Optionally patch Data Dir if a test fixture is provided
         if args.dataset_path:
              compute_rfm.DATA_DIR = args.dataset_path
-             # Note: compute_risk has harcoded DATASETS path in the current script v0. 
-             # We let it default to standard for now, but log it.
-             
+             compute_risk.DATA_DIR = args.dataset_path
         # Patch the Step 6 harness globals
         run_pipeline_harness.OUTPUT_DIR = outputs_dir
         run_pipeline_harness.audit_file = os.path.join(logs_dir, "step6_audit.jsonl")

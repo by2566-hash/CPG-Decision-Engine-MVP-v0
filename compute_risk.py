@@ -3,6 +3,7 @@ from datetime import datetime
 
 # 1. Configuration & Constants
 OUTPUT_DIR = "./OUTPUT"
+DATA_DIR = "./DATASETS"
 ANCHOR_DATE = datetime(2023, 12, 31)  # Matching compute_rfm.py
 RUN_ID = "run_v0_001"
 MIN_SAMPLES_FOR_ROBUST_STAT = 5  # minimum gaps required to use empirical product average
@@ -13,8 +14,8 @@ def compute_replenishment_and_risk():
     orders = pd.read_csv(f"{OUTPUT_DIR}/orders_canonical_sample.csv") # Using the 1000 order sample for v0 execution speed
     
     print("Loading Raw Products and Items...")
-    prior_raw = pd.read_csv("./DATASETS/order_products__prior.csv")
-    products_raw = pd.read_csv("./DATASETS/products.csv")
+    prior_raw = pd.read_csv(f"{DATA_DIR}/order_products__prior.csv")
+    products_raw = pd.read_csv(f"{DATA_DIR}/products.csv")
     
     # Generate canonical products.mock_inventory for our constraint tests later
     import hashlib
