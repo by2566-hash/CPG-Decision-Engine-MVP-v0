@@ -118,6 +118,19 @@ def run():
     with open(f"{OUTPUT_DIR}/llm_gateway_metrics.md", "w") as f:
         f.write(md_content)
         
+    metrics_payload = {
+        "total_processed": total,
+        "schema_passes": schema_passes,
+        "policy_consistency_passes": policy_consistency_passes,
+        "grounding_rejects": grounding_rejects,
+        "overall_llm_passes": overall_llm_passes,
+        "fallback_uses": fallback_uses,
+        "overall_llm_pass_rate": overall_pass_rate,
+        "fallback_rate": fallback_rate
+    }
+    with open(f"{OUTPUT_DIR}/llm_gateway_metrics.json", "w") as f:
+        json.dump(metrics_payload, f, indent=2)
+        
     print(f"Harness complete. Processed {total} cards.")
     print(f"Results written to {out_jsonl}")
     print(f"Metrics written to {OUTPUT_DIR}/llm_gateway_metrics.md")

@@ -1,0 +1,10 @@
+{
+  "total_processed": 0,
+  "schema_passes": 0,
+  "policy_consistency_passes": 0,
+  "grounding_rejects": 0,
+  "overall_llm_passes": 0,
+  "fallback_uses": 0,
+  "overall_llm_pass_rate": 0.0,
+  "fallback_rate": 0.0
+}

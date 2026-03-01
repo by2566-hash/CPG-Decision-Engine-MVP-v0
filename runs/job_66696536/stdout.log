@@ -1,0 +1,110 @@
+=== Starting Run job_66696536 ===
+Artifacts writing to: runs/job_66696536
+
+[1/4] Executing RFM Computation & Canonical Mapping...
+Loading datasets...
+Mapping to Canonical Tables...
+Computing RFM Segments...
+
+--- Segment Definitions (Rules) ---
+1. Champion / Loyal: R >= 4 AND F >= 4 AND M >= 4
+2. High-Value At-Risk: R <= 2 AND (F >= 4 OR M >= 4)
+3. New / Promising: R >= 4 AND F <= 2
+4. Low-Value / Lost: R <= 2 AND F <= 2 AND M <= 2
+5. Need Attention: R == 3 AND (F >= 3 OR M >= 3)
+6. Average Purchaser: All others
+
+--- Segment Distribution Summary ---
+rfm_segment
+Average Purchaser     25.8%
+High-Value At-Risk    18.3%
+New / Promising       16.7%
+Need Attention        13.9%
+Champion / Loyal      13.5%
+Low-Value / Lost      11.9%
+
+--- Canonical Tables Sample ---
+
+Customers Head:
+   user_id  total_orders  m_proxy_value  ...  F_score  M_score        rfm_segment
+0        1            11             59  ...        3        2  Average Purchaser
+1        2            15            195  ...        4        4   Champion / Loyal
+2        3            13             88  ...        3        3     Need Attention
+3        4             6             18  ...        2        1    New / Promising
+4        5             5             37  ...        1        2   Low-Value / Lost
+
+[5 rows x 8 columns]
+
+[2/4] Executing Replenishment Risk Scoring...
+Loading Canonical Tables...
+Loading Raw Products and Items...
+Computing Interpurchase Gaps...
+Aggregating Replenishment Cycles with Fallbacks...
+Scoring Current Risk (Overdue Ratio)...
+
+=============================================
+Replenishment Cycle Mapping Summary
+=============================================
+replenishment_source
+Aisle             71.3%
+Department        28.1%
+Product            0.5%
+Global_Default     0.1%
+
+Discovered 3338 Actionable At-Risk Candidates (Overdue > 1.2, Inventory > 50)
+
+--- TOP 10 OVERDUE CANDIDATES (User x Product) ---
+ user_id  product_id        rfm_segment  last_purchase_days_ago  avg_replenishment_days  overdue_ratio  mock_inventory
+      27       33736     Need Attention                     289                     4.5          64.22             138
+      17       38444 High-Value At-Risk                     310                     5.0          62.00             471
+      21       38444     Need Attention                     288                     5.0          57.60             471
+      21       20272     Need Attention                     288                     5.0          57.60             403
+      21       36425     Need Attention                     280                     5.0          56.00             315
+      21       23504     Need Attention                     280                     5.0          56.00             455
+      21       12013     Need Attention                     288                     6.0          48.00             310
+      21       33065     Need Attention                     280                     6.0          46.67             349
+      17       17762 High-Value At-Risk                     233                     5.0          46.60             439
+      27       35633     Need Attention                     325                     8.0          40.62             421
+
+[3/4] Executing Policy Engine Constraints & Action Generation...
+Loading At-Risk Candidates...
+Evaluating policies for DRY RUN...
+
+=============================================
+ DRY RUN: 3 DIVERSE ACTION CARD SAMPLES
+=============================================
+[
+  {
+    "id": "act_b8a12b10",
+    "run_id": "run_v0_001",
+    "policy_version": "v0_baseline",
+    "action_type": "DISCOUNT",
+    "parameter_value": 0.15,
+    "policy_passed": true,
+    "expected_value_proxy": 8.85,
+    "evidence": "{\"customer_id\": \"1\", \"product_id\": \"26088\", \"rfm_segment\": \"Average Purchaser\", \"overdue_ratio\": 14.33, \"inventory_level\": 136, \"gross_margin_pct\": 0.45}",
+    "constraints_applied": "[{\"rule\": \"max_actions_per_user\", \"value\": 1, \"check\": \"PASS\"}, {\"rule\": \"inventory_floor\", \"value\": 50, \"check\": \"PASS\"}, {\"rule\": \"margin_floor\", \"value\": 0.15, \"check\": \"PASS\"}, {\"rule\": \"max_discount_pct\", \"value\": 0.15, \"check\": \"PASS\"}]",
+    "llm_explanation": "Since your 26088 replenishment is 1333% overdue, we are automatically offering a 15% discount. All constraints passed: margin is healthy (30%) and inventory is above floor."
+  }
+]
+
+=============================================
+ Batch Summary Stats Preview
+=============================================
+Total Unique Users Checked: 64
+Total PASS: 30
+Total FAIL: 34
+
+Top Block Reasons:
+ - Margin Floor Violations: 0
+ - Inventory Floor Violations: 0
+
+[4/4] Executing LLM Bouncer Validator & Representation...
+Loading 30 PASS Action Cards...
+Harness complete. Processed 30 cards.
+Results written to runs/job_66696536/outputs/final_action_cards_with_copy.jsonl
+Metrics written to runs/job_66696536/outputs/llm_gateway_metrics.md
+Audit log updated at runs/job_66696536/logs/step6_audit.jsonl
+
+=== Pipeline Execution Completed Successfully ===
+Receipt written to runs/job_66696536/run_receipt.json

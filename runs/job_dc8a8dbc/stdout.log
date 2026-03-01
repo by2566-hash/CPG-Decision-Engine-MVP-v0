@@ -1,0 +1,78 @@
+=== Starting Run job_dc8a8dbc ===
+Artifacts writing to: runs/job_dc8a8dbc
+
+[1/4] Executing RFM Computation & Canonical Mapping...
+Loading datasets...
+Mapping to Canonical Tables...
+Computing RFM Segments...
+
+--- Segment Definitions (Rules) ---
+1. Champion / Loyal: R >= 4 AND F >= 4 AND M >= 4
+2. High-Value At-Risk: R <= 2 AND (F >= 4 OR M >= 4)
+3. New / Promising: R >= 4 AND F <= 2
+4. Low-Value / Lost: R <= 2 AND F <= 2 AND M <= 2
+5. Need Attention: R == 3 AND (F >= 3 OR M >= 3)
+6. Average Purchaser: All others
+
+--- Segment Distribution Summary ---
+rfm_segment
+High-Value At-Risk    50.0%
+New / Promising       50.0%
+
+--- Canonical Tables Sample ---
+
+Customers Head:
+   user_id  total_orders  m_proxy_value  ...  F_score  M_score         rfm_segment
+0      201             3              3  ...        5        5  High-Value At-Risk
+1      202             2              2  ...        1        1     New / Promising
+
+[2 rows x 8 columns]
+
+[2/4] Executing Replenishment Risk Scoring...
+Loading Canonical Tables...
+Loading Raw Products and Items...
+Computing Interpurchase Gaps...
+Aggregating Replenishment Cycles with Fallbacks...
+Scoring Current Risk (Overdue Ratio)...
+
+=============================================
+Replenishment Cycle Mapping Summary
+=============================================
+replenishment_source
+Department    100.0%
+
+Discovered 1 Actionable At-Risk Candidates (Overdue > 1.2, Inventory > 50)
+
+--- TOP 10 OVERDUE CANDIDATES (User x Product) ---
+ user_id  product_id        rfm_segment  last_purchase_days_ago  avg_replenishment_days  overdue_ratio  mock_inventory
+     201        1001 High-Value At-Risk                      52                    30.0           1.73             307
+
+[3/4] Executing Policy Engine Constraints & Action Generation...
+Loading At-Risk Candidates...
+Evaluating policies for DRY RUN...
+
+=============================================
+ DRY RUN: 3 DIVERSE ACTION CARD SAMPLES
+=============================================
+[]
+
+=============================================
+ Batch Summary Stats Preview
+=============================================
+Total Unique Users Checked: 1
+Total PASS: 0
+Total FAIL: 1
+
+Top Block Reasons:
+ - Margin Floor Violations: 0
+ - Inventory Floor Violations: 0
+
+[4/4] Executing LLM Bouncer Validator & Representation...
+Loading 30 PASS Action Cards...
+Harness complete. Processed 0 cards.
+Results written to runs/job_dc8a8dbc/outputs/final_action_cards_with_copy.jsonl
+Metrics written to runs/job_dc8a8dbc/outputs/llm_gateway_metrics.md
+Audit log updated at runs/job_dc8a8dbc/logs/step6_audit.jsonl
+
+=== Pipeline Execution Completed Successfully ===
+Receipt written to runs/job_dc8a8dbc/run_receipt.json

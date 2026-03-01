@@ -119,13 +119,11 @@ def execute_pipeline(args):
         
         # 5. Extract Metrics for receipt
         try:
-             import re
-             metrics_path = os.path.join(outputs_dir, "llm_gateway_metrics.md")
-             if os.path.exists(metrics_path):
-                 with open(metrics_path, "r") as f:
-                     content = f.read()
-                     receipt["metrics_summary"]["overall_llm_pass_rate"] = re.search(r'Overall LLM Pass Rate:\*\*\s*(.+%)', content).group(1)
-                     receipt["metrics_summary"]["fallback_usage_rate"] = re.search(r'Fallback Usage Rate:\*\*\s*(.+%)', content).group(1)
+             metrics_json_path = os.path.join(outputs_dir, "llm_gateway_metrics.json")
+             if os.path.exists(metrics_json_path):
+                 with open(metrics_json_path, "r") as f:
+                     metrics_data = json.load(f)
+                     receipt["metrics_summary"].update(metrics_data)
         except Exception as e:
              receipt["metrics_summary"]["error"] = f"Failed to parse metrics: {str(e)}"
              

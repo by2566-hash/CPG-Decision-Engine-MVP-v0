@@ -1,0 +1,18 @@
+{
+  "run_id": "debug_zero",
+  "mode": "mock",
+  "status": "FAILED",
+  "timestamps": {
+    "start": "2026-03-01T01:40:55.159452",
+    "end": "2026-03-01T01:40:55.206565"
+  },
+  "metrics_summary": {},
+  "artifact_paths": {
+    "run_dir": "runs/debug_zero",
+    "outputs_dir": "runs/debug_zero/outputs",
+    "logs_dir": "runs/debug_zero/logs"
+  },
+  "errors": [
+    "division by zero"
+  ]
+}

@@ -1,0 +1,2 @@
+user_id,product_id,last_product_order_ts,last_purchase_days_ago,avg_replenishment_days,mock_inventory,overdue_ratio,R_score,F_score,M_score,rfm_segment,risk_id
+201,1001,2023-11-09,52,30.0,307,1.73,1,5,5,High-Value At-Risk,debug_zero:201:1001

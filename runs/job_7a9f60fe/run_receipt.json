@@ -1,0 +1,21 @@
+{
+  "run_id": "job_7a9f60fe",
+  "mode": "mock",
+  "status": "SUCCESS",
+  "timestamps": {
+    "start": "2026-03-01T08:02:28.058247",
+    "end": "2026-03-01T08:03:10.408696"
+  },
+  "metrics_summary": {
+    "overall_llm_pass_rate": "0.0%",
+    "fallback_usage_rate": "100.0%"
+  },
+  "artifact_paths": {
+    "run_dir": "runs/job_7a9f60fe",
+    "outputs_dir": "runs/job_7a9f60fe/outputs",
+    "logs_dir": "runs/job_7a9f60fe/logs",
+    "final_copies_jsonl": "runs/job_7a9f60fe/outputs/final_action_cards_with_copy.jsonl",
+    "audit_log": "runs/job_7a9f60fe/logs/step6_audit.jsonl"
+  },
+  "errors": []
+}
