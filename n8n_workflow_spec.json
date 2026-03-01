@@ -113,11 +113,17 @@
                     "string": [
                         {
                             "value1": "={{ $json.status }}",
-                            "operation": "in",
-                            "value2": "SUCCEEDED,FAILED"
+                            "value2": "SUCCEEDED"
+                        },
+                        {
+                            "value1": "={{ $json.status }}",
+                            "value2": "FAILED"
                         }
-                    ]
-                }
+                    ],
+                    "boolean": [],
+                    "number": []
+                },
+                "combineOperation": "any"
             },
             "id": "b3e945dc-4c6e-41bc-96b6-d2bc5fc07bc4",
             "name": "Is Job Done?",
