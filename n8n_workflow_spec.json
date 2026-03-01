@@ -1,0 +1,294 @@
+{
+    "name": "Decision Engine Runner - Plan B Workflow",
+    "nodes": [
+        {
+            "parameters": {
+                "rule": {
+                    "interval": [
+                        {
+                            "field": "cronExpression",
+                            "expression": "0 8 * * 1"
+                        }
+                    ]
+                }
+            },
+            "id": "e8a93ac1-24fb-4b95-a5d5-98bf3b6528df",
+            "name": "Weekly Trigger (Cron)",
+            "type": "n8n-nodes-base.cron",
+            "typeVersion": 1,
+            "position": [
+                200,
+                280
+            ]
+        },
+        {
+            "parameters": {
+                "httpMethod": "POST",
+                "path": "cpg-runner-webhook",
+                "options": {}
+            },
+            "id": "1fa1479d-9cfd-4d43-8f0a-ddaa944ef91b",
+            "name": "Webhook Trigger (Manual)",
+            "type": "n8n-nodes-base.webhook",
+            "typeVersion": 1,
+            "position": [
+                200,
+                460
+            ],
+            "webhookId": "50e4a779-7a72-474d-910a-37e40ed885ca"
+        },
+        {
+            "parameters": {
+                "method": "POST",
+                "url": "http://runner:8000/api/v1/jobs/run",
+                "sendHeaders": true,
+                "headerParameters": {
+                    "parameters": [
+                        {
+                            "name": "X-API-KEY",
+                            "value": "dev_mvp_key_001"
+                        }
+                    ]
+                },
+                "sendBody": true,
+                "bodyParameters": {
+                    "parameters": [
+                        {
+                            "name": "run_mode",
+                            "value": "mock"
+                        }
+                    ]
+                },
+                "options": {}
+            },
+            "id": "abc25992-62db-4a1d-a91d-e6a645934bcb",
+            "name": "POST /jobs/run",
+            "type": "n8n-nodes-base.httpRequest",
+            "typeVersion": 4.1,
+            "position": [
+                460,
+                360
+            ]
+        },
+        {
+            "parameters": {
+                "amount": 10
+            },
+            "id": "7b824efd-b922-4a5a-93a8-df496ac72b38",
+            "name": "Wait (10s)",
+            "type": "n8n-nodes-base.wait",
+            "typeVersion": 1.1,
+            "position": [
+                680,
+                360
+            ],
+            "webhookId": "9b1c7da5-fcbb-4a5a-a309-8b09337ba570"
+        },
+        {
+            "parameters": {
+                "url": "={{ 'http://runner:8000/api/v1/jobs/' + $('POST /jobs/run').item.json.run_id + '/status' }}",
+                "sendHeaders": true,
+                "headerParameters": {
+                    "parameters": [
+                        {
+                            "name": "X-API-KEY",
+                            "value": "dev_mvp_key_001"
+                        }
+                    ]
+                },
+                "options": {}
+            },
+            "id": "2817d23d-c208-4122-aff5-dc1959bc38d7",
+            "name": "GET /status",
+            "type": "n8n-nodes-base.httpRequest",
+            "typeVersion": 4.1,
+            "position": [
+                900,
+                360
+            ]
+        },
+        {
+            "parameters": {
+                "conditions": {
+                    "string": [
+                        {
+                            "value1": "={{ $json.status }}",
+                            "operation": "in",
+                            "value2": "SUCCEEDED,FAILED"
+                        }
+                    ]
+                }
+            },
+            "id": "b3e945dc-4c6e-41bc-96b6-d2bc5fc07bc4",
+            "name": "Is Job Done?",
+            "type": "n8n-nodes-base.if",
+            "typeVersion": 1,
+            "position": [
+                1120,
+                360
+            ]
+        },
+        {
+            "parameters": {
+                "conditions": {
+                    "string": [
+                        {
+                            "value1": "={{ $json.status }}",
+                            "value2": "SUCCEEDED"
+                        }
+                    ]
+                }
+            },
+            "id": "c1f72e3a-1d5d-4f81-a9ac-31c3bf88ac6d",
+            "name": "Check Success/Fail",
+            "type": "n8n-nodes-base.if",
+            "typeVersion": 1,
+            "position": [
+                1380,
+                280
+            ]
+        },
+        {
+            "parameters": {
+                "channel": "marketing-alerts",
+                "text": "={{ '✅ Decision Engine Batch `' + $json.run_id + '` Succeeded!\n\n*Metrics:*\n- LLM Pass Rate: ' + $json.metrics_summary.overall_llm_pass_rate + '\n- Fallback Rate: ' + $json.metrics_summary.fallback_usage_rate + '\n\n*Artifacts Saved To:*\n- `' + $json.artifact_paths.final_copies_jsonl + '`' }}",
+                "attachments": [],
+                "otherOptions": {}
+            },
+            "id": "1d8b9f71-8b3d-4c3d-b4ef-1f4862b512c1",
+            "name": "Slack (Success)",
+            "type": "n8n-nodes-base.slack",
+            "typeVersion": 2.1,
+            "position": [
+                1640,
+                140
+            ],
+            "credentials": {
+                "slackApi": {
+                    "id": "slack_alert_bot_v0",
+                    "name": "Slack API"
+                }
+            }
+        },
+        {
+            "parameters": {
+                "channel": "marketing-alerts",
+                "text": "={{ '🚨 Decision Engine Batch `' + $json.run_id + '` FAILED!\n\n*Error Trace:*\n' + $json.error }}",
+                "attachments": [],
+                "otherOptions": {}
+            },
+            "id": "ee76543b-2f1d-487d-b6db-5452fcd2cc9d",
+            "name": "Slack (Failed)",
+            "type": "n8n-nodes-base.slack",
+            "typeVersion": 2.1,
+            "position": [
+                1640,
+                420
+            ],
+            "credentials": {
+                "slackApi": {
+                    "id": "slack_alert_bot_v0",
+                    "name": "Slack API"
+                }
+            }
+        }
+    ],
+    "connections": {
+        "Weekly Trigger (Cron)": {
+            "main": [
+                [
+                    {
+                        "node": "POST /jobs/run",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Webhook Trigger (Manual)": {
+            "main": [
+                [
+                    {
+                        "node": "POST /jobs/run",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "POST /jobs/run": {
+            "main": [
+                [
+                    {
+                        "node": "Wait (10s)",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Wait (10s)": {
+            "main": [
+                [
+                    {
+                        "node": "GET /status",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "GET /status": {
+            "main": [
+                [
+                    {
+                        "node": "Is Job Done?",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Is Job Done?": {
+            "main": [
+                [
+                    {
+                        "node": "Check Success/Fail",
+                        "type": "main",
+                        "index": 0
+                    }
+                ],
+                [
+                    {
+                        "node": "Wait (10s)",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Check Success/Fail": {
+            "main": [
+                [
+                    {
+                        "node": "Slack (Success)",
+                        "type": "main",
+                        "index": 0
+                    }
+                ],
+                [
+                    {
+                        "node": "Slack (Failed)",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        }
+    },
+    "active": false,
+    "settings": {
+        "executionOrder": "v1"
+    },
+    "versionId": "f03123fa-cd97-40c2-9ce2-5f6afbe817aa"
+}

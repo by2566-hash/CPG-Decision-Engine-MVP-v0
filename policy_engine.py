@@ -111,8 +111,8 @@ def build_action_cards_dry_run():
             "parameter_value": parameter_value,
             "policy_passed": policy_passed,
             "expected_value_proxy": round(final_discount * row['m_proxy_value'], 2), 
-            "evidence": evidence_dict,
-            "constraints_applied": constraints_applied,
+            "evidence": json.dumps(evidence_dict),
+            "constraints_applied": json.dumps(constraints_applied),
             "llm_explanation": llm_explainer
         }
         action_cards.append(card)
@@ -135,6 +135,9 @@ def build_action_cards_dry_run():
     print(" DRY RUN: 3 DIVERSE ACTION CARD SAMPLES")
     print("=============================================")
     print(json.dumps(out_json, indent=2))
+    
+    # Save the full output payload for Step 6 to consume
+    cards_df.to_csv(f"{OUTPUT_DIR}/action_cards_v0.csv", index=False)
     
     # Print summary stats
     passed_count = len(cards_df[cards_df['policy_passed'] == True])

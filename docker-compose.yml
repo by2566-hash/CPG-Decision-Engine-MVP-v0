@@ -1,0 +1,69 @@
+version: "3.8"
+
+services:
+  # 1. CPG Decision Engine MVP Runner
+  runner:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: cpg_runner
+    ports:
+      - "8000:8000"
+    environment:
+      - RUNNER_API_KEY=${RUNNER_API_KEY:-dev_mvp_key_001}
+      - DISABLE_SECURITY=${DISABLE_SECURITY:-false}
+    volumes:
+      # Mount runs to persist outputs locally on host
+      - ./runs:/app/runs
+      # Mount datasets so the engine can read raw data without baking into image
+      - ./DATASETS:/app/DATASETS:ro
+    restart: unless-stopped
+
+  # 2. PostgreSQL backend for n8n
+  postgres:
+    image: postgres:15-alpine
+    container_name: cpg_n8n_db
+    environment:
+      - POSTGRES_USER=${POSTGRES_USER:-n8n_user}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD:-n8n_pass_dev}
+      - POSTGRES_DB=${POSTGRES_DB:-n8n_db}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: [ "CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-n8n_user} -d ${POSTGRES_DB:-n8n_db}" ]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
+  # 3. n8n Orchestrator
+  n8n:
+    image: n8nio/n8n:latest
+    container_name: cpg_n8n_orchestrator
+    ports:
+      - "5678:5678"
+    environment:
+      - DB_TYPE=postgresdb
+      - DB_POSTGRESDB_HOST=postgres
+      - DB_POSTGRESDB_PORT=5432
+      - DB_POSTGRESDB_DATABASE=${POSTGRES_DB:-n8n_db}
+      - DB_POSTGRESDB_USER=${POSTGRES_USER:-n8n_user}
+      - DB_POSTGRESDB_PASSWORD=${POSTGRES_PASSWORD:-n8n_pass_dev}
+      - N8N_BASIC_AUTH_ACTIVE=true
+      - N8N_BASIC_AUTH_USER=${N8N_USER:-admin}
+      - N8N_BASIC_AUTH_PASSWORD=${N8N_PASSWORD:-admin123}
+      - WEBHOOK_URL=${N8N_WEBHOOK_URL:-http://localhost:5678/}
+    volumes:
+      - n8n_data:/home/node/.n8n
+      # Optional: Mount runs read-only so n8n can use "ReadFile" nodes if desired
+      - ./runs:/data/runs:ro
+    depends_on:
+      postgres:
+        condition: service_healthy
+      runner:
+        condition: service_started
+    restart: unless-stopped
+
+volumes:
+  postgres_data:
+  n8n_data:

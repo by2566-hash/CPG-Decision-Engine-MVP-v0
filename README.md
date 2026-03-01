@@ -62,17 +62,31 @@ python3 policy_engine.py
 ```
 *Outputs:* `OUTPUT/action_cards_v0.csv`, `OUTPUT/campaign_events_v0.csv`
 
-#### 4. The LLM Rendering Harness (Bouncer Pattern)
-Runs the generated Action Cards through the mock LLM renderer. Deliberately injects a ~30% hallucination rate (inflated discounts, missing placeholders, banned words) to demonstrate the 4-Gate Validator catching errors and gracefully falling back to deterministic templates.
+#### 4. The Unified Assessor & LLM Runner (`run_pipeline.py`)
+Executes the generated Action Cards through the Bouncer Pattern and records strictly audited metrics into a timestamped `/runs` folder.
 ```bash
-python3 run_pipeline_harness.py
+python3 run_pipeline.py --mode mock
 ```
-*Outputs:*
-- `outputs/final_action_cards_with_copy.jsonl` (The final deployable payload)
-- `logs/step6_audit.jsonl` (Telemetry of every LLM validation attempt)
-- `outputs/step6_metrics.md` (Performance and rejection reporting)
+*Outputs are saved to:* `runs/<run_id>/outputs/` and `runs/<run_id>/logs/`
 
 ---
+
+## 🐳 Plan B Orchestration (Local Run)
+
+For local development and n8n orchestration, the MVP includes a Docker Compose stack that stands up the Decision Engine as a FastAPI backend alongside an n8n container and PostgreSQL.
+
+1. Ensure Docker is running.
+2. Build and start the stack in the background:
+   ```bash
+   cp .env.example .env
+   docker compose up -d
+   ```
+3. Test the Runner API health locally:
+   ```bash
+   curl -X POST "http://localhost:8000/api/v1/jobs/run" -H "X-API-KEY: dev_mvp_key_001" -H "Content-Type: application/json" -d '{"run_mode": "mock"}'
+   ```
+4. Open the n8n UI at `http://localhost:5678` (Credentials in `.env`) to design your schedule triggers to orchestrate the backend.
+
 
 ## 🛡 Validating the Bouncer Pattern
 

@@ -1,0 +1,2 @@
+{"id": "act_mock1", "action_type": "DISCOUNT", "parameter_value": 0.15, "evidence": {"product_id": "1001", "rfm_segment": "Champion / Loyal", "overdue_ratio": 1.5, "inventory_level": 100}, "llm_explanation": "Mock explanation 1"}
+{"id": "act_mock2", "action_type": "NO_ACTION", "parameter_value": 0.0, "evidence": {"product_id": "1002", "rfm_segment": "Need Attention", "overdue_ratio": 0.8, "inventory_level": 10}, "llm_explanation": "Mock explanation 2"}

@@ -56,7 +56,7 @@ def run():
         elif idx % 10 == 3:
             llm_resp = generate_mock_llm_response(card, inject_error="banned_phrase")
         elif idx == 4:
-            llm_resp = '{ "bad_json": true ' # Force JSON parse error
+            llm_resp = '{ "bad_json": true }' # Force JSON schema error instead of hard crash
         else:
             llm_resp = generate_mock_llm_response(card)
             
