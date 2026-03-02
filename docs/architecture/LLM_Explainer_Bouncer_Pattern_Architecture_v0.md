@@ -10,29 +10,29 @@
 
 ```mermaid
 flowchart TD
-    A[Policy Engine Output\naction_cards_v0.csv] --> B(Render Builder)
-    B -->|Context JSON + Prompt| C{LLM Engine}
-    C -->|Generated Text| D[Bouncer Validator(4 Gates)]
+A[Policy Engine Output\naction_cards_v0.csv] --> B(Render Builder)
+B -->|Context JSON + Prompt| C{LLM Engine}
+C -->|Generated Text| D[Bouncer Validator/n(4 Gates)]
     
-    D -->|Gate 1: Format| G1{JSON parsing}
-    G1 -->|Pass| G2
+D -->|Gate 1: Format| G1{JSON parsing}
+G1 -->|Pass| G2
     
-    D -->|Gate 2: Fact Check| G2{Discount & Math Match}
-    G2 -->|Pass| G3
+D -->|Gate 2: Fact Check| G2{Discount & Math Match}
+G2 -->|Pass| G3
     
-    D -->|Gate 3: Channel Rules| G3{Length & CTA Check}
-    G3 -->|Pass| G4
+D -->|Gate 3: Channel Rules| G3{Length & CTA Check}
+G3 -->|Pass| G4
     
-    D -->|Gate 4: Safety| G4{Banned Phrases Check}
+D -->|Gate 4: Safety| G4{Banned Phrases Check}
     
-    G4 -->|Pass| E(Post-Processor)
-    G1 & G2 & G3 & G4 -->|Fail| F(Fallback Generator)
+G4 -->|Pass| E(Post-Processor)
+G1 & G2 & G3 & G4 -->|Fail| F(Fallback Generator)
     
-    E --> H[Validated Outputs\nfinal_action_cards_with_copy.jsonl]
-    F --> H
+E --> H[Validated Outputs\nfinal_action_cards_with_copy.jsonl]
+F --> H
     
-    H --> I(Campaign Events Logger)
-    I --> J[telemetry_audit.jsonl APPEND]
+H --> I(Campaign Events Logger)
+I --> J[telemetry_audit.jsonl APPEND]
 ```
 
 ---
