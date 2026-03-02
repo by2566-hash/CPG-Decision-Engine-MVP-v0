@@ -2,6 +2,8 @@
 
 **A Bouncer-Patterned Agentic Marketing Engine tailored for CPG / Retail.**
 
+> **Note to Executives / Evaluators:** Please see the [MVP Handoff Report](./MVP_Handoff_Report.md) for a high-level business summary, architecture overview, and demo presentation guide.
+
 This repository contains the v0 Minimum Viable Product (MVP) of the CPG Decision Engine. It is an end-to-end Python pipeline designed to ingest raw transactional data, deterministically compute RFM segmentation and replenishment risk signals, construct strict policy-constrained "Trade Orders" (Action Cards), and safely render them into customer-facing copy via Large Language Models (LLMs) protected by a rigorous 4-Gate "Bouncer Pattern" validator.
 
 ## 🎯 Architecture Philosophy: The "Brain-Mouth Decoupling"
@@ -39,39 +41,28 @@ The pipeline is completely deterministic and can be run sequentially offline.
 pip install pandas pytest
 ```
 
-### Step-by-Step Execution
+### Execution Workflow
 
-#### 1. Data Ingestion & Signal Generation
-This script processes the raw `/DATASETS`, maps them to canonical tables, calculates RFM percentiles, and assigns customer segments.
-```bash
-python3 compute_rfm.py
-```
-*Outputs:* `OUTPUT/customers_canonical_full.csv`, `OUTPUT/orders_canonical_sample.csv`
+The pipeline has been centralized into a single deterministic orchestrator that runs all computational stages sequentially and isolates outputs into timestamped job directories.
 
-#### 2. Risk & Replenishment Scoring
-Calculates empirical interpurchase gaps to determine true replenishment cycles (with SKU -> Aisle -> Department fallback handling). Identifies candidates with an `overdue_ratio > 1.2`.
-```bash
-python3 compute_risk.py
-```
-*Outputs:* `OUTPUT/products_canonical.csv`, `OUTPUT/risk_scores_v0.csv`, `OUTPUT/at_risk_candidates_v0.csv`
-
-#### 3. Policy Evaluation (The Risk Gateway)
-Takes the At-Risk candidates and applies strict business constraints (Inventory limitations, Margin Floors, Frequency Caps). Only candidates passing all gates are issued an Action Card.
-```bash
-python3 policy_engine.py
-```
-*Outputs:* `OUTPUT/action_cards_v0.csv`, `OUTPUT/campaign_events_v0.csv`
-
-#### 4. The Unified Assessor & LLM Runner (`run_pipeline.py`)
-Executes the generated Action Cards through the Bouncer Pattern and records strictly audited metrics into a timestamped `/runs` folder.
 ```bash
 python3 run_pipeline.py --mode mock
 ```
-*Outputs are saved to:* `runs/<run_id>/outputs/` and `runs/<run_id>/logs/`
+
+**What this does:**
+1. **RFM Computation (`compute_rfm.py`)**: Maps raw datasets to canonical tables and assigns segments.
+2. **Risk Scoring (`compute_risk.py`)**: Calculates inter-purchase gaps and flags overdue candidates.
+3. **Policy Engine (`policy_engine.py`)**: Enforces margin floors and inventory limitations, generating raw Action Cards.
+4. **LLM Bouncer (`run_pipeline_harness.py`)**: Renders Action Cards to GenAI marketing texts and enforces the 4-Gate Validator.
+
+*Outputs are cleanly separated per-run:* 
+- Data Artifacts: `runs/<run_id>/outputs/`
+- Telemetry & Audit: `runs/<run_id>/logs/`
+- Report: `runs/<run_id>/run_receipt.json`
 
 ---
 
-## 🐳 Plan B Orchestration (Local Run)
+## 🐳 Enterprise Orchestration (n8n + Docker)
 
 For local development and n8n orchestration, the MVP includes a Docker Compose stack that stands up the Decision Engine as a FastAPI backend alongside an n8n container and PostgreSQL.
 
