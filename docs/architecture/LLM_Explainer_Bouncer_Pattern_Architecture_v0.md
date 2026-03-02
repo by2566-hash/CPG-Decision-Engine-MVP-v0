@@ -1,4 +1,4 @@
-# Step 6: LLM Explainer & Bouncer Pattern Architecture v0
+# LLM Explainer & Bouncer Pattern Architecture v0
 
 **Goal:** Transform deterministic Action Cards (the "trade order") into customer-facing text using a Large Language Model, and strictly validate the output to prevent hallucinations or unauthorized offers.
 
@@ -28,11 +28,11 @@ flowchart TD
     G4 -->|Pass| E(Post-Processor)
     G1 & G2 & G3 & G4 -->|Fail| F(Fallback Generator)
     
-    E --> H[Validated Outputs\nfinal_campaign_targets_v0.jsonl]
+    E --> H[Validated Outputs\nfinal_action_cards_with_copy.jsonl]
     F --> H
     
     H --> I(Campaign Events Logger)
-    I --> J[campaign_events_v0.csv APPEND]
+    I --> J[telemetry_audit.jsonl APPEND]
 ```
 
 ---
@@ -63,6 +63,6 @@ After the bulk run, all final generated text (whether LLM-approved or Fallback) 
 ## 3. Exit Criteria for Step 6
 
 The MVP is complete when the batch script successfully outputs:
-1.  `final_campaign_targets_v0.jsonl`: Contains the ActionCard info + the validated `final_llm_copy` + the `validation_status` (PASS or FALLBACK).
-2.  `campaign_events_v0.csv`: Accurately updated with the issuance tracking rows.
-3.  **Summary Console Output:** Showing `# Generated, # Passed Validator, # Failed -> Fallback`.
+1.  `final_action_cards_with_copy.jsonl`: Contains the ActionCard info + the validated `final_llm_copy` + the `validation_status` (PASS or FALLBACK).
+2.  `telemetry_audit.jsonl`: Accurately updated with the issuance tracking rows.
+3.  **Summary JSON Output:** Showing the exact Pass Rates, Grounding Rejects, and Schema failures inside `llm_gateway_metrics.json`.
