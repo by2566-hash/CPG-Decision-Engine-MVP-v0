@@ -12,7 +12,7 @@
 flowchart TD
     A[Policy Engine Output\naction_cards_v0.csv] --> B(Render Builder)
     B -->|Context JSON + Prompt| C{LLM Engine}
-    C -->|Generated Text| D[Bouncer Validator/4 Gates]
+    C -->|Generated Text| D[Bouncer Validator - 4 Gates]
     
     D -->|Gate 1: Format| G1{JSON parsing}
     G1 -->|Pass| G2
