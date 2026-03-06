@@ -1,4 +1,4 @@
-# CPG Decision Engine MVP
+# CPG Decision Engine MVP - v0
 
 **A Bouncer-Patterned Agentic Marketing Engine tailored for CPG / Retail.**
 
