@@ -1,9 +1,0 @@
-{
-  "run_id": "job_dc8a8dbc",
-  "status": "SUCCEEDED",
-  "mode": "mock",
-  "dataset_path": "./tests/fixtures",
-  "started_at": "2026-03-01T06:41:29.902356",
-  "finished_at": "2026-03-01T06:41:30.670615",
-  "error": null
-}

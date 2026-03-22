@@ -1,2 +1,0 @@
-{"action_trade_id": "act_3af47310", "policy_echo": {"action_type": "DISCOUNT", "discount_pct": 0.15}, "final_llm_copy": "As a valued High-Value At-Risk customer, enjoy 15% off your next order of items like 9327.", "channel": "sms", "validation_status": "FALLBACK"}
-{"action_trade_id": "act_b3e83368", "policy_echo": {"action_type": "DISCOUNT", "discount_pct": 0.15}, "final_llm_copy": "As a valued New / Promising customer, enjoy 15% off your next order of items like 46842.", "channel": "sms", "validation_status": "FALLBACK"}
