@@ -1,29 +1,41 @@
-# Environments
+# ─── Python artifacts ────────────────────────────────────────────────────────
+__pycache__/
+*.py[cod]
+*$py.class
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+*.egg-info/
+dist/
+build/
+
+# ─── Virtual environments ─────────────────────────────────────────────────────
 .env
-.venv
-env/
+.env.local
+.venv/
 venv/
+env/
 ENV/
 env.bak/
 venv.bak/
 .Python
 
-# Mac specific
+# ─── Mac / IDE ────────────────────────────────────────────────────────────────
 .DS_Store
+.idea/
+.vscode/
+*.swp
 
-# Huge Data Directories (DO NOT COMMIT)
-# The raw Instacart data is too large and outputs recreate on-the-fly
-DATASETS/*.csv
-!DATASETS/*.pdf
-OUTPUT/*.csv
-outputs/*.jsonl
-outputs/*.md
-logs/*.jsonl
-
-# Python artifacts
-__pycache__/
-*.py[cod]
-*$py.class
-.pytest_cache/
+# ─── Pipeline run artifacts (auto-generated; recreated on every run) ─────────
+# All three output directory naming conventions used in the codebase:
 runs/
+OUTPUT/
+outputs/
+logs/
+
+# ─── Large raw datasets (too big to commit; must be downloaded separately) ───
+DATASETS/*.csv
+DATASETS/*.gz
+!DATASETS/*.pdf
+!DATASETS/README.md
 Datasets_CPG/archive.zip

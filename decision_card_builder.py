@@ -283,13 +283,14 @@ def build_single_decision_card(
     evidence = _parse_evidence(action_card)
     confidence, validation_status = derive_confidence_and_status(replenishment_source)
 
-    # Evaluate playbook trigger against this card's metrics (for diagnostic completeness;
-    # the policy engine's decision is authoritative and is preserved unchanged).
+    # Evaluate playbook trigger against this card's evidence metrics.
+    # The policy engine's decision remains authoritative — this result is stored
+    # for diagnostic transparency only and never overrides policy_passed.
     metrics = {
-        "overdue_ratio": evidence.get("overdue_ratio", 0.0),
+        "overdue_ratio":  evidence.get("overdue_ratio", 0.0),
         "mock_inventory": evidence.get("inventory_level", 0),
     }
-    _EVALUATOR.evaluate(playbook, metrics)   # result not used to override policy decision
+    trigger_result = _EVALUATOR.evaluate(playbook, metrics)
 
     annotated_chain  = _annotate_evidence_chain(playbook, evidence, replenishment_source)
     diagnosis        = _build_diagnosis_summary(playbook, evidence, replenishment_source, validation_status)
@@ -307,7 +308,7 @@ def build_single_decision_card(
         "run_id":         run_id,
         "generated_at":   datetime.now(timezone.utc).isoformat(),
 
-        # Diagnostic flow (the new output)
+        # Diagnostic flow
         "pattern_detected":   playbook.problem_pattern.name,
         "diagnosis_summary":  diagnosis,
         "evidence_chain":     annotated_chain,
@@ -327,9 +328,25 @@ def build_single_decision_card(
             else []
         ),
 
+        # Playbook trigger evaluation (diagnostic transparency — does NOT override policy)
+        "playbook_trigger": {
+            "fired":      trigger_result.triggered,
+            "conditions": [
+                {
+                    "metric":    c.metric,
+                    "op":        c.op,
+                    "threshold": c.threshold,
+                    "observed":  c.observed,
+                    "matched":   c.matched,
+                    "skipped":   c.skipped,
+                }
+                for c in trigger_result.trigger_results
+            ],
+        },
+
         # Quality signals
-        "confidence":        confidence,
-        "validation_status": validation_status,
+        "confidence":            confidence,
+        "validation_status":     validation_status,
         "expected_impact_proxy": expected_impact,
 
         # Policy engine decision — unchanged, preserved for traceability

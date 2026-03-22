@@ -1,3 +1,4 @@
+import os
 import pandas as pd
 import uuid
 import json
@@ -5,7 +6,7 @@ import hashlib
 from datetime import datetime
 
 # 1. Configuration & Constants
-OUTPUT_DIR = "./OUTPUT"
+OUTPUT_DIR = os.getenv("MVP_OUTPUT_DIR", "./OUTPUT")
 RUN_ID = "run_v0_001"
 POLICY_VERSION = "v0_baseline"
 EMITTED_AT = datetime(2023, 12, 31).isoformat()  # Using the ANCHOR_DATE context for consistency

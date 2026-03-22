@@ -12,6 +12,7 @@ import compute_risk
 import policy_engine
 import run_pipeline_harness
 import decision_card_builder
+import telemetry_audit_logger
 
 def generate_run_id() -> str:
     """Generates an ISO timestamp + random suffix run ID."""
@@ -57,18 +58,22 @@ def execute_pipeline(args):
             json.dump(receipt, f, indent=2)
 
     try:
-        # Patch Global Output Directories to ensure everything writes to the run folder
-        compute_rfm.OUTPUT_DIR = outputs_dir
-        compute_risk.OUTPUT_DIR = outputs_dir
-        policy_engine.OUTPUT_DIR = outputs_dir
-        
-        # Optionally patch Data Dir if a test fixture is provided
+        # ── Patch module globals so every step writes to the same run folder ──
+        compute_rfm.OUTPUT_DIR            = outputs_dir
+        compute_risk.OUTPUT_DIR           = outputs_dir
+        policy_engine.OUTPUT_DIR          = outputs_dir
+        run_pipeline_harness.OUTPUT_DIR   = outputs_dir
+        run_pipeline_harness.RUN_MODE     = args.mode
+
+        # Audit log goes to the run-specific logs/ folder
+        audit_log_path = os.path.join(logs_dir, "step6_audit.jsonl")
+        run_pipeline_harness.audit_file        = audit_log_path
+        telemetry_audit_logger.AUDIT_LOG_FILE  = audit_log_path
+
+        # Optionally override the raw data directory (e.g. for test fixtures)
         if args.dataset_path:
-             compute_rfm.DATA_DIR = args.dataset_path
-             compute_risk.DATA_DIR = args.dataset_path
-        # Patch the Step 6 harness globals
-        run_pipeline_harness.OUTPUT_DIR = outputs_dir
-        run_pipeline_harness.audit_file = os.path.join(logs_dir, "step6_audit.jsonl")
+            compute_rfm.DATA_DIR  = args.dataset_path
+            compute_risk.DATA_DIR = args.dataset_path
 
         print(f"=== Starting Run {run_id} ===")
         print(f"Artifacts writing to: {run_dir}")
@@ -102,25 +107,9 @@ def execute_pipeline(args):
             print(f"[WARNING] Decision card generation failed: {e}")
             receipt["errors"].append(f"DecisionCardBuilder: {str(e)}")
 
-        # Step 5: LLM Explainability Bouncer (Renderer) — consumes decision cards from Step 4
+        # Step 5: LLM Explainability Bouncer — consumes decision cards from Step 4
         print("\n[5/5] Executing LLM Bouncer Validator & Representation...")
-        # Patch the harness to read from the run outputs_dir instead of its hardcoded path.
-        import pandas as pd
-        def patched_run():
-            original_read_csv = pd.read_csv
-            def mock_read_csv(filepath, **kwargs):
-                if "action_cards_v0.csv" in filepath:
-                    return original_read_csv(os.path.join(outputs_dir, "action_cards_v0.csv"), **kwargs)
-                return original_read_csv(filepath, **kwargs)
-
-            run_pipeline_harness.pd.read_csv = mock_read_csv
-            run_pipeline_harness.OUTPUT_DIR = outputs_dir
-            try:
-                run_pipeline_harness.run()
-            finally:
-                run_pipeline_harness.pd.read_csv = original_read_csv
-
-        patched_run()
+        run_pipeline_harness.run()
 
         try:
              metrics_json_path = os.path.join(outputs_dir, "llm_gateway_metrics.json")

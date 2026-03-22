@@ -4,11 +4,15 @@ import os
 from collections import Counter
 from llm_safety_gateway import LLMSafetyGateway, ErrorCodes
 from llm_response_hydrator import process_action_card
-from llm_explainability_renderer import generate_mock_llm_response
+from llm_explainability_renderer import call_llm, generate_mock_llm_response
 
-OUTPUT_DIR = "./outputs"
+OUTPUT_DIR = os.getenv("MVP_OUTPUT_DIR", "./OUTPUT")
 os.makedirs(OUTPUT_DIR, exist_ok=True)
 os.makedirs("logs", exist_ok=True)
+
+# Execution mode: "mock" uses generate_mock_llm_response(); "real" calls call_llm().
+# Patched by run_pipeline.py to match the --mode CLI flag.
+RUN_MODE = "mock"
 
 # Delete existing audit log to start fresh for the 30 count
 audit_file = "logs/telemetry_audit.jsonl"
@@ -17,7 +21,7 @@ if os.path.exists(audit_file):
 
 def run():
     print("Loading 30 PASS Action Cards...")
-    cards_df = pd.read_csv("./OUTPUT/action_cards_v0.csv")
+    cards_df = pd.read_csv(f"{OUTPUT_DIR}/action_cards_v0.csv")
     passed_cards = cards_df[cards_df["policy_passed"]].head(30).to_dict(orient="records")
 
     # Load decision cards (built in Step 4) so the renderer can generate merchant explanations.
@@ -64,17 +68,30 @@ def run():
     for idx, card in enumerate(passed_cards):
         decision_card = decision_card_lookup.get(str(card.get("id", "")))
 
-        # Inject predictable errors into the mock response
-        if idx % 10 == 1:
-            llm_resp = generate_mock_llm_response(card, inject_error="hallucinate_discount", decision_card=decision_card)
-        elif idx % 10 == 2:
-            llm_resp = generate_mock_llm_response(card, inject_error="raw_numeric", decision_card=decision_card)
-        elif idx % 10 == 3:
-            llm_resp = generate_mock_llm_response(card, inject_error="banned_phrase", decision_card=decision_card)
-        elif idx == 4:
-            llm_resp = '{ "bad_json": true }' # Force JSON schema error instead of hard crash
+        if RUN_MODE == "real":
+            # ── Real LLM path ──────────────────────────────────────────────
+            # call_llm() must be implemented in llm_explainability_renderer.py
+            # before using this mode (currently raises NotImplementedError).
+            try:
+                llm_resp = call_llm({"card": card, "decision_card": decision_card})
+            except NotImplementedError:
+                print(
+                    "[WARNING] call_llm() not implemented — falling back to mock. "
+                    "Set ANTHROPIC_API_KEY and implement call_llm() to use real mode."
+                )
+                llm_resp = generate_mock_llm_response(card, decision_card=decision_card)
         else:
-            llm_resp = generate_mock_llm_response(card, decision_card=decision_card)
+            # ── Mock path: inject predictable errors to exercise all 5 gates ─
+            if idx % 10 == 1:
+                llm_resp = generate_mock_llm_response(card, inject_error="hallucinate_discount", decision_card=decision_card)
+            elif idx % 10 == 2:
+                llm_resp = generate_mock_llm_response(card, inject_error="raw_numeric", decision_card=decision_card)
+            elif idx % 10 == 3:
+                llm_resp = generate_mock_llm_response(card, inject_error="banned_phrase", decision_card=decision_card)
+            elif idx == 4:
+                llm_resp = '{ "bad_json": true }'  # Force schema-error path
+            else:
+                llm_resp = generate_mock_llm_response(card, decision_card=decision_card)
 
         # Get raw errors to compute metrics before post processing
         errors = validator.validate(llm_resp, card, decision_card=decision_card)
