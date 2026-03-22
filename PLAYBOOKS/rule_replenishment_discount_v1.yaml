@@ -1,0 +1,283 @@
+rule_id: rule_replenishment_discount_v1
+version: "1.0"
+
+# ---------------------------------------------------------------------------
+# MODULE — domain taxonomy
+# ---------------------------------------------------------------------------
+module:
+  primary: customer_retention
+  secondary: replenishment_optimization
+  domain: customer_lifecycle
+  business_model: cpg_dtc_subscription
+  vertical: food_beverage_consumable
+  channels:
+    - email
+    - sms
+  entities:
+    - customer
+    - product
+    - order
+
+# ---------------------------------------------------------------------------
+# CONTEXT — where and for whom this rule applies
+# ---------------------------------------------------------------------------
+context:
+  merchant_type: CPG DTC brand with recurring consumable products
+  applies_broadly_to:
+    - recurring consumable CPG brands
+    - subscription-adjacent products with predictable repurchase cycles
+    - high-frequency replenishment categories (food, beverage, personal care)
+  products_in_scope:
+    - all SKUs with a measurable interpurchase gap (>= 5 historical gaps)
+  notes: >
+    The primary replenishment signal is overdue_ratio: days since last purchase
+    divided by the product's historical median interpurchase cycle.
+    Monetary value is proxied by unique_skus_bought or total_items_bought
+    when true GMV is unavailable (documented assumption per data contract v0).
+
+# ---------------------------------------------------------------------------
+# PROBLEM PATTERN — what is being detected
+# ---------------------------------------------------------------------------
+problem_pattern:
+  name: replenishment_overdue_at_risk_customer
+  business_risk:
+    - customer churns to a competing brand during the unserved replenishment window
+    - lost replenishment revenue from a known, predictable purchase occasion
+    - deteriorating retention cohort LTV due to broken repurchase cycle
+    - increased reacquisition CAC to win back a churned high-value customer
+  observations:
+    trigger_threshold:
+      overdue_ratio: ">= 1.2 (customer is >= 20% past expected cycle)"
+      inventory_floor: "> 50 units (enough stock to fulfill an offer)"
+    policy_constraints:
+      max_discount_pct_global: 0.15
+      margin_floor: 0.15
+      max_actions_per_user: 1
+
+# ---------------------------------------------------------------------------
+# TRIGGER — conditions that must all be true for the rule to fire
+# ---------------------------------------------------------------------------
+trigger:
+  conditions:
+    - metric: overdue_ratio
+      op: ">="
+      value: 1.2
+      relative_to: avg_replenishment_days
+    - metric: mock_inventory
+      op: ">"
+      value: 50
+  description: >
+    Fire when a customer's last purchase of a product exceeds 120% of the
+    product's average replenishment cycle AND inventory is above the
+    fulfillment floor (50 units). Both conditions must be true simultaneously.
+
+# ---------------------------------------------------------------------------
+# DIAGNOSTIC LOGIC — ordered evidence chain from data to diagnosis
+# ---------------------------------------------------------------------------
+diagnostic_logic:
+  evidence_chain:
+    - step: 1
+      observation: >
+        Customer has not repurchased a previously bought product within its
+        expected replenishment window (overdue_ratio >= 1.2).
+      implication: >
+        The customer is at risk of churning from this SKU, whether due to
+        competitive substitution, satisfaction issues, or simply forgetting.
+      data_source: orders_canonical + products_canonical (compute_risk.py)
+
+    - step: 2
+      observation: >
+        Overdue ratio exceeds 1.2x the product-level median interpurchase gap,
+        derived from >= 5 historical purchase gaps (falling back to aisle-level
+        or department-level median if product data is sparse).
+      implication: >
+        The delay is material (>20% over expected cycle), not noise.
+        The interpurchase cycle estimate is robust enough to act on.
+      data_source: compute_risk.py / overdue_ratio + replenishment_source
+
+    - step: 3
+      observation: >
+        Inventory is above the fulfillment floor (mock_inventory > 50 units).
+      implication: >
+        The SKU can be offered with confidence. Suppressing offers for
+        out-of-stock items avoids bad customer experience and wasted send.
+      data_source: products_canonical / mock_inventory
+
+    - step: 4
+      observation: >
+        Post-discount gross margin remains above the margin floor (>= 15%)
+        after applying the discount capped at 15%.
+      implication: >
+        The action is commercially viable. The discount does not erode
+        contribution margin below the minimum acceptable threshold.
+      data_source: policy_engine.py / mock_gross_margin + margin_floor constraint
+
+  required_data_sources:
+    minimum_viable:
+      - orders
+      - products
+      - rfm_segments
+    recommended:
+      - true_gmv_or_revenue
+      - real_inventory_feed
+      - product_gross_margin
+
+# ---------------------------------------------------------------------------
+# DIAGNOSIS SUMMARY — the "because" sentence the merchant reads
+# ---------------------------------------------------------------------------
+diagnosis_summary: >
+  This customer is overdue for replenishment of a product they have
+  historically purchased on a regular cycle. The delay exceeds the
+  product's historical interpurchase average by 20% or more, inventory
+  is available, and a discount offer is commercially viable given current
+  margin levels. The most likely cause is passive churn risk rather than
+  active dissatisfaction.
+
+# ---------------------------------------------------------------------------
+# LIKELY CAUSES — ranked hypotheses
+# ---------------------------------------------------------------------------
+likely_causes:
+  - cause: Customer passively deprioritized or forgot to repurchase
+    confidence: medium
+    supporting_evidence: >
+      Overdue ratio between 1.2 and 1.8 with no prior complaint or
+      return signal. The most common cause of mild overdue ratios.
+
+  - cause: Customer is trialing a competing product
+    confidence: low
+    supporting_evidence: >
+      No direct signal available. Inferred when overdue ratio exceeds 2.0
+      and the customer has a history of multi-brand exploration (low F score).
+
+  - cause: Customer experienced a negative product or delivery experience
+    confidence: low
+    supporting_evidence: >
+      No complaint or return signal available in this dataset. Should be
+      cross-checked against customer service data if available.
+
+# ---------------------------------------------------------------------------
+# CHECKS TO RUN — before acting (or to promote a HYPOTHESIS to RECOMMENDATION)
+# ---------------------------------------------------------------------------
+checks_to_run:
+  - check_id: check_rfm_segment
+    description: Confirm the customer's RFM segment before acting.
+    why: >
+      Discount offers should be prioritized for High-Value or Loyal segments
+      to protect margin. Lower-value segments (New, Lapsed) should receive
+      lighter-touch interventions.
+    confirm_if: rfm_segment is one of [High-Value, Loyal, At-Risk, Champions]
+    data_source: customers_canonical
+
+  - check_id: check_overdue_magnitude
+    description: >
+      Confirm overdue ratio magnitude to calibrate intervention type.
+    why: >
+      A ratio of 1.2 warrants a light nudge; a ratio > 2.5 may indicate
+      true churn where a discount alone will not recover the customer.
+    confirm_if: overdue_ratio is between 1.2 and 3.0
+    data_source: at_risk_candidates_v0
+
+  - check_id: check_margin_viability
+    description: Verify post-discount gross margin remains above 15%.
+    why: >
+      Offering a discount that erodes margin below the floor is
+      commercially harmful and violates the policy engine's hard constraint.
+    confirm_if: gross_margin - final_discount_pct >= 0.15
+    data_source: policy_engine.py constraint evaluation
+
+# ---------------------------------------------------------------------------
+# SUGGESTED ACTIONS — priority-ordered
+# ---------------------------------------------------------------------------
+suggested_actions:
+  - action_type: DISCOUNT
+    priority: 1
+    recommendation: >
+      Offer a capped discount (up to 15% off) on the overdue product
+      to re-engage the customer and restore their replenishment cycle.
+      Personalize the message with the specific product and the customer's
+      replenishment timing context.
+    preconditions:
+      - overdue_ratio >= 1.2
+      - mock_inventory > 50
+      - post_discount_margin >= 0.15
+      - max_one_action_per_user_per_run
+    automation_level: semi_automated
+
+  - action_type: REMINDER_NO_DISCOUNT
+    priority: 2
+    recommendation: >
+      If margin or inventory constraints block a discount, send a
+      no-offer reminder message to keep the brand and product
+      top-of-mind without a commercial incentive.
+    preconditions:
+      - overdue_ratio >= 1.2
+      - discount_blocked_by_margin_or_inventory
+    automation_level: warn_only
+
+# ---------------------------------------------------------------------------
+# EXPECTED IMPACT PROXY
+# ---------------------------------------------------------------------------
+expected_impact_proxy:
+  description: >
+    Re-engaging an at-risk replenishment customer is expected to recover
+    one purchase cycle and reduce per-SKU churn probability within the
+    30-day window following the send.
+  key_metrics:
+    - repurchase_rate_within_30d
+    - customer_retention_rate
+    - contribution_margin_per_action
+    - ltv_proxy
+  estimated_improvement: >
+    Historical CPG benchmarks: replenishment nudges recover 15–30% of
+    at-risk customers within one cycle window when the customer is
+    in a High-Value or Loyal segment.
+
+# ---------------------------------------------------------------------------
+# DO NOT RECOMMEND — hard guardrails
+# ---------------------------------------------------------------------------
+do_not_recommend:
+  - action_type: TURN_OFF_PRODUCT_LISTING
+    reason: >
+      Suppressing the product listing would eliminate organic repurchase
+      opportunity and is entirely disproportionate to a replenishment
+      delay signal. The pattern indicates a customer-side timing issue,
+      not a product-level failure.
+
+  - action_type: FULL_REFUND_OFFER
+    reason: >
+      A refund offer is not warranted by a replenishment delay alone.
+      It would signal product failure and set a harmful commercial precedent
+      for all customers in this segment.
+
+# ---------------------------------------------------------------------------
+# COMMON AI FAILURE MODES — guards for LLM prompt hardening
+# ---------------------------------------------------------------------------
+common_ai_failure_modes:
+  - failure_mode: >
+      Over-indexing on overdue_ratio magnitude and recommending aggressive
+      discounts (>15%) without checking the margin floor constraint.
+    guard: >
+      Always enforce max_discount_pct_global = 0.15 before suggesting a
+      discount depth. The policy engine is the authority on commercial
+      viability; the LLM renders copy only.
+
+  - failure_mode: >
+      Treating all at-risk customers identically regardless of RFM segment,
+      applying the same discount offer to low-value and high-value customers.
+    guard: >
+      Segment-aware messaging: prioritize High-Value and Loyal segments for
+      discount offers. Use reminder-only copy for lower-value segments.
+
+  - failure_mode: >
+      Diagnosing the delay as a product quality issue and recommending
+      customer service escalation when the signal is purely timing-based.
+    guard: >
+      In absence of complaint or return data, the default diagnosis is
+      passive timing drift, not active dissatisfaction.
+
+# ---------------------------------------------------------------------------
+# METADATA
+# ---------------------------------------------------------------------------
+confidence: medium
+validation_status: RECOMMENDATION
+action_lever: replenishment_discount_nudge

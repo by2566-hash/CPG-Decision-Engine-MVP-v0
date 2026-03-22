@@ -11,6 +11,7 @@ import compute_rfm
 import compute_risk
 import policy_engine
 import run_pipeline_harness
+import decision_card_builder
 
 def generate_run_id() -> str:
     """Generates an ISO timestamp + random suffix run ID."""
@@ -30,7 +31,7 @@ def setup_run_dir(run_id: str, out_dir_base: str):
     return run_dir, outputs_dir, logs_dir
 
 def execute_pipeline(args):
-    """Orchestrates the 4 steps of the MVP and writes artifacts."""
+    """Orchestrates the 5 steps of the MVP and writes artifacts."""
     run_id = args.run_id or generate_run_id()
     run_dir, outputs_dir, logs_dir = setup_run_dir(run_id, args.out_dir)
     
@@ -73,51 +74,54 @@ def execute_pipeline(args):
         print(f"Artifacts writing to: {run_dir}")
 
         # Step 1: RFM Computation
-        print("\n[1/4] Executing RFM Computation & Canonical Mapping...")
+        print("\n[1/5] Executing RFM Computation & Canonical Mapping...")
         compute_rfm.load_and_map_data()
-        
+
         # Step 2: Risk Scoring
-        print("\n[2/4] Executing Replenishment Risk Scoring...")
+        print("\n[2/5] Executing Replenishment Risk Scoring...")
         # compute_risk uses RUN_ID globally
         compute_risk.RUN_ID = run_id
         compute_risk.compute_replenishment_and_risk()
         
         # Step 3: Policy Engine
-        print("\n[3/4] Executing Policy Engine Constraints & Action Generation...")
+        print("\n[3/5] Executing Policy Engine Constraints & Action Generation...")
         policy_engine.build_action_cards_dry_run()
         
-        # Step 4: LLM Explainability Bouncer (Renderer)
-        print("\n[4/4] Executing LLM Bouncer Validator & Representation...")
-        # is_mock flag unused here in runner proxy
-        # run_pipeline_harness.py acts as the wrapper for step 6 metric generation.
-        # We invoke the underlying runner. 
-        # Note: the harness originally loaded action_cards_v0.csv hardcoded. 
-        # It needs to read from the *new* outputs_dir.
-        
-        # Temporary patch via pandas directly in run_pipeline_harness if possible,
-        # but the module hardcodes "./OUTPUT/action_cards_v0.csv".
-        # We overwrite that hardcoded path in memory.
+        # Step 4: Decision Card Builder (runs before LLM step so renderer can consume cards)
+        print("\n[4/5] Building Merchant-Facing Decision Cards...")
+        decision_cards_path = os.path.join(outputs_dir, "decision_cards.jsonl")
+        try:
+            decision_card_builder.build_decision_cards(
+                action_cards_path=os.path.join(outputs_dir, "action_cards_v0.csv"),
+                products_path=os.path.join(outputs_dir, "products_canonical.csv"),
+                output_path=decision_cards_path,
+                run_id=run_id,
+            )
+            receipt["artifact_paths"]["decision_cards_jsonl"] = decision_cards_path
+        except Exception as e:
+            print(f"[WARNING] Decision card generation failed: {e}")
+            receipt["errors"].append(f"DecisionCardBuilder: {str(e)}")
+
+        # Step 5: LLM Explainability Bouncer (Renderer) — consumes decision cards from Step 4
+        print("\n[5/5] Executing LLM Bouncer Validator & Representation...")
+        # Patch the harness to read from the run outputs_dir instead of its hardcoded path.
         import pandas as pd
         def patched_run():
-            # cards_df variable removed to pass ruff lint
-            # The rest of the logic inside the harness... we can call it directly, or adapt.
-            # To ensure compatibility with the unmodified script, we just execute its run() method,
-            # but we must mock pd.read_csv globally inside that module.
             original_read_csv = pd.read_csv
             def mock_read_csv(filepath, **kwargs):
                 if "action_cards_v0.csv" in filepath:
                     return original_read_csv(os.path.join(outputs_dir, "action_cards_v0.csv"), **kwargs)
                 return original_read_csv(filepath, **kwargs)
-            
+
             run_pipeline_harness.pd.read_csv = mock_read_csv
+            run_pipeline_harness.OUTPUT_DIR = outputs_dir
             try:
                 run_pipeline_harness.run()
             finally:
                 run_pipeline_harness.pd.read_csv = original_read_csv
 
         patched_run()
-        
-        # 5. Extract Metrics for receipt
+
         try:
              metrics_json_path = os.path.join(outputs_dir, "llm_gateway_metrics.json")
              if os.path.exists(metrics_json_path):

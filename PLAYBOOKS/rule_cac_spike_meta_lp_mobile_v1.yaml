@@ -1,0 +1,388 @@
+rule_id: rule_cac_spike_meta_lp_mobile_v1
+version: "1.0"
+
+# ---------------------------------------------------------------------------
+# MODULE — domain taxonomy
+# ---------------------------------------------------------------------------
+module:
+  primary: acquisition_efficiency
+  secondary: conversion_merchandising
+  domain: marketing_operations
+  business_model: cpg_dtc_omnichannel
+  vertical: food_beverage_coffee
+  channels:
+    - meta_ads
+    - google_ads
+    - ga4
+    - ecommerce_platform
+  entities:
+    - merchant
+    - campaign
+    - ad_set
+    - landing_page
+    - device_category
+    - browser
+    - operating_system
+    - product_bundle
+
+# ---------------------------------------------------------------------------
+# CONTEXT — where and for whom this rule applies
+# ---------------------------------------------------------------------------
+context:
+  merchant_type: Omnichannel CPG coffee brand with Meta as the primary demand-generation channel
+  applies_broadly_to:
+    - recurring consumable CPG brands
+    - food and beverage brands
+    - coffee and specialty beverage brands
+    - any brand where Meta is a top-3 paid acquisition channel
+  products_in_scope:
+    - bundle landing pages (multi-SKU)
+    - any high-spend ad set pointing to a mobile-first landing page
+  notes: >
+    Meta is the primary demand-generation channel for this merchant archetype.
+    Google is more demand-capture oriented and less likely to drive CAC spikes
+    independently. CAC is calculated as spend / new_customers (not orders).
+    This rule fires at the ad-set level, not just the account level.
+
+# ---------------------------------------------------------------------------
+# PROBLEM PATTERN — what is being detected
+# ---------------------------------------------------------------------------
+problem_pattern:
+  name: spend_customer_divergence_cac_spike
+  business_risk:
+    - reduced new customer growth while spend continues to rise
+    - worse CAC efficiency and deteriorating payback period
+    - wasted media budget on a technically broken landing experience
+    - reduced contribution margin from inefficient new customer acquisition
+  observations:
+    before_issue:
+      period: 4 days before spike
+      spend_per_day: 1700.70
+      customers_per_day: 30
+      cac: 56.22
+    during_issue:
+      period: spike window (5 days)
+      spend_per_day: 2920.61
+      customers_per_day: 41
+      cac: 72.11
+    after_issue:
+      period: 4 days post-fix
+      spend_per_day: 2380.48
+      customers_per_day: 40
+      cac: 60.27
+
+# ---------------------------------------------------------------------------
+# TRIGGER — conditions that must all be true for the rule to fire
+# ---------------------------------------------------------------------------
+trigger:
+  conditions:
+    - metric: cac_7d
+      op: ">="
+      value: 1.15
+      relative_to: prior_7d_same_dow_baseline
+    - metric: cac_spike_duration_days
+      op: ">="
+      value: 4
+    - metric: spend_growth_rate
+      op: ">"
+      value: customer_growth_rate
+  description: >
+    Trigger when CAC rises 15% or more versus the prior 7-day baseline,
+    the rise persists for 4 or more consecutive days, and spend growth
+    materially outpaces customer growth over the same window. All three
+    conditions must hold simultaneously.
+
+# ---------------------------------------------------------------------------
+# DIAGNOSTIC LOGIC — ordered evidence chain
+# ---------------------------------------------------------------------------
+diagnostic_logic:
+  evidence_chain:
+    - step: 1
+      observation: >
+        CAC rose materially (≥15%) versus prior-period baseline and the
+        rise persisted for 4+ days, ruling out a one-day anomaly.
+      implication: >
+        Something structural changed during this window, not a transient
+        data spike. The issue warrants a systematic diagnostic.
+      data_source: meta_ads + ga4 / cac_7d vs prior_7d_same_dow_baseline
+
+    - step: 2
+      observation: >
+        Meta represented approximately 82% of total spend during the spike.
+        Google spend and performance were relatively stable.
+      implication: >
+        The CAC movement is concentrated in Meta. Focusing the diagnosis
+        on the Meta account is the highest-leverage path.
+      data_source: meta_ads / channel_spend_share
+
+    - step: 3
+      observation: >
+        Meta CPC, CPM, and cost per checkout initiated did not rise enough
+        to explain the CAC delta. Upper-funnel efficiency was roughly stable.
+      implication: >
+        The problem is post-click, not auction-driven. Media inefficiency
+        (creative fatigue, CPM inflation) is not the primary cause.
+        The issue lives between ad click and purchase conversion.
+      data_source: meta_ads / cpc, cpm, cost_per_checkout_initiated
+
+    - step: 4
+      observation: >
+        Incremental spend and CPA deterioration are concentrated in a
+        specific campaign (testing_campaign) and two ad sets
+        (new_product_test, bundle_ad_set). The bundle ad set CPA rose
+        from ~41 to ~58 while spend rose from ~750 to ~1250.
+      implication: >
+        This is not a broad account issue. One ad set is disproportionately
+        driving the CAC spike. Isolating it enables a targeted intervention
+        without disrupting the rest of the account.
+      data_source: meta_ads / campaign and ad_set level CPA + spend breakdown
+
+    - step: 5
+      observation: >
+        The main funnel deterioration occurred in CVR (landing-page
+        conversion rate), while upper-funnel metrics (CTR, CPC) remained
+        relatively stable.
+      implication: >
+        Traffic quality is not the issue. The problem is on the landing page
+        itself: something is breaking the conversion path after the click.
+      data_source: ga4 / funnel_stage_cvr
+
+    - step: 6
+      observation: >
+        GA4 device segmentation shows mobile CVR dropped ~17% while desktop
+        and tablet were flat. Weak segments: Android, Android WebView,
+        Samsung devices, Google devices.
+      implication: >
+        The conversion problem is device-specific, not universal. A
+        technical landing-page issue affecting Android and WebView
+        environments is the most likely explanation.
+      data_source: ga4 / device_category, browser, operating_system segments
+
+    - step: 7
+      observation: >
+        Manual device validation confirmed a landing-page load or interaction
+        issue is reproducible on the relevant device/browser environments.
+      implication: >
+        This is a confirmed technical issue, not a statistical artefact.
+        The root cause is a landing-page bug, not creative fatigue or
+        media inefficiency.
+      data_source: manual QA / device emulator or physical device test
+
+  required_data_sources:
+    minimum_viable:
+      - meta_ads
+      - ga4
+    recommended:
+      - google_ads
+      - shopline_or_shopify_order_data
+
+# ---------------------------------------------------------------------------
+# DIAGNOSIS SUMMARY — the "because" statement
+# ---------------------------------------------------------------------------
+diagnosis_summary: >
+  A CAC spike concentrated in Meta, without a proportional rise in CPC or
+  CPM, combined with a CVR deterioration isolated to mobile and Android
+  WebView environments, strongly indicates a landing-page technical issue
+  on the bundle page rather than broad media inefficiency or creative
+  fatigue. The affected ad set had strong prior performance, so this is
+  a recoverable situation once the technical issue is resolved.
+
+# ---------------------------------------------------------------------------
+# LIKELY CAUSES — ranked hypotheses
+# ---------------------------------------------------------------------------
+likely_causes:
+  - cause: Mobile landing-page technical issue on the bundle page (Android / WebView)
+    confidence: high
+    supporting_evidence: >
+      CVR drop is isolated to mobile/Android/WebView (-17%) while desktop
+      is flat. Upper-funnel metrics stable. Issue confirmed via manual
+      device validation.
+
+  - cause: Creative fatigue on the bundle ad set
+    confidence: low
+    supporting_evidence: >
+      No supporting signal: CTR and engagement metrics did not deteriorate
+      in a pattern consistent with creative fatigue. Ruled out after
+      upper-funnel stability was confirmed.
+
+  - cause: Audience quality degradation or targeting drift
+    confidence: low
+    supporting_evidence: >
+      No supporting signal: CPM and CPC were stable, and the issue is
+      device-specific rather than audience-wide. Ruled out.
+
+# ---------------------------------------------------------------------------
+# CHECKS TO RUN
+# ---------------------------------------------------------------------------
+checks_to_run:
+  - check_id: check_top_spend_channel
+    description: Identify which channel represents the majority of spend during the spike.
+    why: >
+      The highest-spend channel is the most likely contributor to total
+      CAC movement. Concentrate the diagnosis there first.
+    confirm_if: One channel represents the majority of spend AND shows CPA deterioration.
+    data_source: meta_ads + google_ads / spend_share
+
+  - check_id: check_upper_funnel_metrics
+    description: >
+      Compare CPC, CPM, and cost per checkout initiated before and during
+      the spike.
+    why: >
+      If upper-funnel metrics are stable while CAC worsens, the problem is
+      post-click. This rules out media inefficiency as the primary driver.
+    confirm_if: CPC/CPM/cost_per_checkout_initiated do not explain the CAC delta.
+    data_source: meta_ads / campaign-level upper funnel metrics
+
+  - check_id: check_campaign_ad_set_concentration
+    description: >
+      Isolate which campaign and ad set account for the incremental spend
+      and CPA deterioration.
+    why: >
+      A broad account issue behaves differently from a concentrated
+      campaign/ad set issue. Concentration enables a targeted fix.
+    confirm_if: >
+      Incremental spend and CPA deterioration are concentrated in one or
+      two specific ad sets.
+    data_source: meta_ads / ad_set level CPA and spend delta
+
+  - check_id: check_funnel_stage_break
+    description: Identify at which funnel stage CVR deteriorates.
+    why: >
+      Funnel-stage diagnosis narrows whether the issue is traffic quality
+      (CTR), page experience (CVR), or checkout friction (completion rate).
+    confirm_if: CVR deteriorates while upper-funnel metrics are stable.
+    data_source: ga4 / funnel_stage breakdown
+
+  - check_id: check_ga4_device_browser_os_segmentation
+    description: >
+      Segment GA4 conversion data by device category, browser, and
+      operating system.
+    why: >
+      Technical landing-page issues typically manifest in specific
+      device/browser environments, not uniformly across all traffic.
+    confirm_if: >
+      Mobile, Android, or WebView segments show disproportionate
+      conversion decline vs desktop/tablet baselines.
+    data_source: ga4 / device, browser, OS segments
+
+  - check_id: check_manual_device_validation
+    description: >
+      Manually test the landing page on Android, WebView, Samsung,
+      and Google device environments.
+    why: >
+      Technical issues must be confirmed in the live user environment
+      before making spend decisions. Statistical signals are necessary
+      but not sufficient.
+    confirm_if: >
+      Landing-page load or interaction issue is reproducible on at
+      least one of the identified device/browser combinations.
+    data_source: manual QA / device emulator or physical device
+
+# ---------------------------------------------------------------------------
+# SUGGESTED ACTIONS — priority-ordered
+# ---------------------------------------------------------------------------
+suggested_actions:
+  - action_type: REDUCE_SPEND_ON_AFFECTED_AD_SET
+    priority: 1
+    recommendation: >
+      Reduce spend on the affected bundle ad set by approximately 50%
+      immediately to stop the CAC bleed while the technical issue is
+      investigated and fixed. Do not turn the ad set off entirely.
+    preconditions:
+      - affected_ad_set_is_identified
+      - cvr_drop_is_material
+    automation_level: semi_automated
+
+  - action_type: VALIDATE_PAGE_ON_AFFECTED_DEVICE_ENVIRONMENTS
+    priority: 2
+    recommendation: >
+      Test the bundle landing page on Android, WebView (Chrome + Samsung
+      Internet), Samsung Galaxy, and Google Pixel device environments.
+      Document any load errors, layout breaks, or interaction failures.
+    preconditions:
+      - ga4_segment_data_shows_device_browser_issue
+    automation_level: warn_only
+
+  - action_type: REDIRECT_TRAFFIC_TO_ALTERNATE_EXPERIENCE
+    priority: 3
+    recommendation: >
+      If a confirmed technical fix will take more than 24 hours, route
+      traffic from the affected ad set to an alternate landing page or
+      product detail page not subject to the same technical issue.
+    preconditions:
+      - alternate_flow_exists
+      - issue_is_confirmed_via_manual_validation
+    automation_level: operator_only
+
+# ---------------------------------------------------------------------------
+# EXPECTED IMPACT PROXY
+# ---------------------------------------------------------------------------
+expected_impact_proxy:
+  description: >
+    Resolving the mobile landing-page issue and reducing spend on the
+    affected ad set is expected to return CAC close to the pre-spike
+    baseline and improve media efficiency materially within 3–5 days.
+  key_metrics:
+    - cac_7d
+    - mobile_cvr
+    - spend_per_new_customer
+    - payback_period_days
+  estimated_improvement: >
+    Based on observed post-fix data: CAC improved ~16% vs. the during-spike
+    level (72.11 → 60.27). Spend reduced ~18% while customer volume was
+    maintained, improving media efficiency meaningfully.
+
+# ---------------------------------------------------------------------------
+# DO NOT RECOMMEND — hard guardrails
+# ---------------------------------------------------------------------------
+do_not_recommend:
+  - action_type: TURN_OFF_AD_SET_COMPLETELY
+    reason: >
+      The affected ad set had strong historical performance (CPA ~41 pre-spike).
+      A full shutoff would overreact to what is a technical issue, not a
+      structurally bad ad set. It would also destroy learning history in
+      the Meta algorithm, making future performance harder to recover.
+
+  - action_type: REFRESH_CREATIVE
+    reason: >
+      Creative fatigue is ruled out by stable CTR and engagement metrics.
+      Refreshing creative would waste time and budget while the actual
+      technical issue goes unresolved. This is the most common AI
+      misdiagnosis for this pattern.
+
+# ---------------------------------------------------------------------------
+# COMMON AI FAILURE MODES — guards for LLM prompt hardening
+# ---------------------------------------------------------------------------
+common_ai_failure_modes:
+  - failure_mode: >
+      Over-weighting CPC/CPM movement and diagnosing the CAC spike as
+      generic media inefficiency or creative fatigue before checking
+      landing-page and device/browser segments.
+    guard: >
+      Always check whether upper-funnel metrics (CPC, CPM, cost per
+      checkout initiated) moved enough to explain the CAC delta BEFORE
+      concluding media inefficiency. If they did not, the diagnosis must
+      move to post-click (landing page, device, UX).
+
+  - failure_mode: >
+      Recommending creative refresh as the first action because it is
+      the most commonly available lever, not because the evidence supports it.
+    guard: >
+      Creative refresh must be supported by CTR deterioration or explicit
+      frequency/fatigue signals. In absence of those signals, it is
+      explicitly in do_not_recommend.
+
+  - failure_mode: >
+      Recommending turning off the ad set entirely because it shows
+      elevated CPA, without considering historical performance baseline.
+    guard: >
+      Always compare CPA during-spike against pre-spike baseline before
+      recommending spend shutoff. A temporarily elevated CPA on a
+      historically strong ad set warrants spend reduction, not elimination.
+
+# ---------------------------------------------------------------------------
+# METADATA
+# ---------------------------------------------------------------------------
+confidence: high
+validation_status: RECOMMENDATION
+action_lever: ad_spend_reduction_plus_lp_fix

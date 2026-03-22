@@ -19,7 +19,21 @@ def run():
     print("Loading 30 PASS Action Cards...")
     cards_df = pd.read_csv("./OUTPUT/action_cards_v0.csv")
     passed_cards = cards_df[cards_df["policy_passed"]].head(30).to_dict(orient="records")
-    
+
+    # Load decision cards (built in Step 4) so the renderer can generate merchant explanations.
+    # Falls back gracefully if the file doesn't exist (e.g. standalone harness run).
+    decision_card_lookup: dict = {}
+    decision_cards_path = os.path.join(OUTPUT_DIR, "decision_cards.jsonl")
+    if os.path.exists(decision_cards_path):
+        with open(decision_cards_path) as _dc_f:
+            for _line in _dc_f:
+                if _line.strip():
+                    _dc = json.loads(_line)
+                    _key = str(_dc.get("action_card_id", ""))
+                    if _key:
+                        decision_card_lookup[_key] = _dc
+        print(f"Loaded {len(decision_card_lookup)} decision cards for merchant explanation.")
+
     validator = LLMSafetyGateway()
     
     # Tracking for metrics
@@ -48,39 +62,41 @@ def run():
     final_targets = []
     
     for idx, card in enumerate(passed_cards):
+        decision_card = decision_card_lookup.get(str(card.get("id", "")))
+
         # Inject predictable errors into the mock response
         if idx % 10 == 1:
-            llm_resp = generate_mock_llm_response(card, inject_error="hallucinate_discount")
+            llm_resp = generate_mock_llm_response(card, inject_error="hallucinate_discount", decision_card=decision_card)
         elif idx % 10 == 2:
-            llm_resp = generate_mock_llm_response(card, inject_error="raw_numeric")
+            llm_resp = generate_mock_llm_response(card, inject_error="raw_numeric", decision_card=decision_card)
         elif idx % 10 == 3:
-            llm_resp = generate_mock_llm_response(card, inject_error="banned_phrase")
+            llm_resp = generate_mock_llm_response(card, inject_error="banned_phrase", decision_card=decision_card)
         elif idx == 4:
             llm_resp = '{ "bad_json": true }' # Force JSON schema error instead of hard crash
         else:
-            llm_resp = generate_mock_llm_response(card)
-            
+            llm_resp = generate_mock_llm_response(card, decision_card=decision_card)
+
         # Get raw errors to compute metrics before post processing
-        errors = validator.validate(llm_resp, card)
-        
+        errors = validator.validate(llm_resp, card, decision_card=decision_card)
+
         # Metric Logic
         if not any(e in schema_errors for e in errors):
             schema_passes += 1
-            
+
         if not any(e in policy_errors for e in errors):
             policy_consistency_passes += 1
-            
+
         if any(e in grounding_errors for e in errors):
             grounding_rejects += 1
-            
+
         if not errors:
             overall_llm_passes += 1
         else:
             fallback_uses += 1
             all_error_codes.extend(errors)
-            
+
         # Process and log (incorporates validator and fallback routing)
-        final_record = process_action_card(card, llm_resp, validator)
+        final_record = process_action_card(card, llm_resp, validator, decision_card=decision_card)
         final_targets.append(final_record)
         
     out_jsonl = f"{OUTPUT_DIR}/final_action_cards_with_copy.jsonl"

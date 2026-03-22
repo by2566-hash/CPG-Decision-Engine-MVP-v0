@@ -26,6 +26,11 @@ class ErrorCodes:
     E_COPY_BAD_PLACEHOLDER = "E_COPY_BAD_PLACEHOLDER"
     E_COPY_CHANNEL_REQUIREMENT_FAIL = "E_COPY_CHANNEL_REQUIREMENT_FAIL"
 
+    # Gate E Merchant explanation (optional — only checked when decision_card is provided)
+    E_MERCHANT_EXPLANATION_MISSING_FIELD = "E_MERCHANT_EXPLANATION_MISSING_FIELD"
+    E_MERCHANT_EXPLANATION_PATTERN_MISMATCH = "E_MERCHANT_EXPLANATION_PATTERN_MISMATCH"
+    E_MERCHANT_EXPLANATION_MISSING_UNCERTAINTY = "E_MERCHANT_EXPLANATION_MISSING_UNCERTAINTY"
+
 
 class LLMSafetyGateway:
     def __init__(self, channel_rules_path="config/channel_rules.json", banned_phrases_path="config/banned_phrases.txt"):
@@ -46,9 +51,14 @@ class LLMSafetyGateway:
             
         self.allowed_placeholders = {"{PRODUCT}", "{DISCOUNT_TEXT}", "{CTA}", "{SEGMENT_LABEL}"}
 
-    def validate(self, llm_response_text: str, action_card: dict) -> list[str]:
+    def validate(self, llm_response_text: str, action_card: dict, decision_card=None) -> list[str]:
         """
-        Runs the 4 gates.
+        Runs the 4 core gates plus optional Gate E (merchant explanation).
+
+        decision_card: the decision card dict produced by decision_card_builder for
+                       this action card.  When provided, Gate E validates the
+                       'merchant_explanation' field if present in the LLM response.
+
         Returns a list of error codes. If empty, the validation passed.
         """
         errors = []
@@ -151,5 +161,20 @@ class LLMSafetyGateway:
             }
             if req_element in req_map and req_map[req_element] not in body_text:
                 errors.append(ErrorCodes.E_COPY_CHANNEL_REQUIREMENT_FAIL)
+
+        # GATE E: Merchant explanation grounding (only when decision_card is provided)
+        me = llm_json.get("merchant_explanation")
+        if me is not None and decision_card is not None:
+            _required = ["pattern", "summary", "key_evidence", "top_recommendation"]
+            if any(f not in me for f in _required):
+                errors.append(ErrorCodes.E_MERCHANT_EXPLANATION_MISSING_FIELD)
+            elif me.get("pattern") != decision_card.get("pattern_detected", ""):
+                errors.append(ErrorCodes.E_MERCHANT_EXPLANATION_PATTERN_MISMATCH)
+
+            if (
+                decision_card.get("validation_status") == "HYPOTHESIS"
+                and not me.get("uncertainty_note")
+            ):
+                errors.append(ErrorCodes.E_MERCHANT_EXPLANATION_MISSING_UNCERTAINTY)
 
         return list(set(errors)) # return unique errors

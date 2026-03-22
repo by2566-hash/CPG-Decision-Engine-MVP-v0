@@ -1,0 +1,226 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://internal/cpg-decision-engine/merchant_decision_card_schema.v1.json",
+  "title": "Merchant-Facing Decision Card Schema v1",
+  "description": "Schema for the merchant-facing decision card: the output artifact that tells a merchant what pattern was detected, why, what to do about it, and what the expected outcome is. This is distinct from the customer-facing copy output. It follows the diagnostic flow: Pattern Detected → Evidence Chain → Diagnosis → Likely Causes → Checks → Recommendation → Expected Impact.",
+  "type": "object",
+  "required": [
+    "card_id",
+    "rule_id",
+    "run_id",
+    "generated_at",
+    "pattern_detected",
+    "diagnosis_summary",
+    "evidence_chain",
+    "checks_to_run",
+    "recommendations",
+    "why",
+    "confidence",
+    "expected_impact_proxy",
+    "validation_status"
+  ],
+  "properties": {
+    "card_id": {
+      "type": "string",
+      "description": "Unique identifier for this decision card instance."
+    },
+    "rule_id": {
+      "type": "string",
+      "description": "The playbook rule that fired and produced this card.",
+      "pattern": "^rule_[a-z0-9_]+$"
+    },
+    "run_id": {
+      "type": "string",
+      "description": "The pipeline run that produced this card. Links to the run_receipt."
+    },
+    "generated_at": {
+      "type": "string",
+      "description": "ISO 8601 timestamp of when this card was generated."
+    },
+    "merchant_id": {
+      "type": "string",
+      "description": "Identifier for the merchant this card is addressed to. Optional for batch runs."
+    },
+
+    "pattern_detected": {
+      "type": "string",
+      "description": "A single sentence naming the pattern that fired (e.g. 'Replenishment overdue for high-value customers'). This is the headline the merchant reads first."
+    },
+
+    "diagnosis_summary": {
+      "type": "string",
+      "description": "Two-to-three sentence diagnostic explanation: what the data shows, what it implies, and what the likely root cause is. Corresponds to the 'because' field in the playbook."
+    },
+
+    "evidence_chain": {
+      "type": "array",
+      "minItems": 1,
+      "description": "The ordered chain of observations and implications that support the diagnosis. Mirrors the playbook's diagnostic_logic.evidence_chain, populated with run-specific values where available.",
+      "items": {
+        "type": "object",
+        "required": ["step", "observation", "implication"],
+        "properties": {
+          "step": {
+            "type": "integer",
+            "minimum": 1,
+            "description": "Sequence number."
+          },
+          "observation": {
+            "type": "string",
+            "description": "What the data shows at this step (may include run-specific values)."
+          },
+          "implication": {
+            "type": "string",
+            "description": "What this observation implies."
+          },
+          "data_source": {
+            "type": "string",
+            "description": "Where this observation comes from."
+          },
+          "observed_value": {
+            "description": "The actual run-time value observed (optional; numeric or string)."
+          }
+        },
+        "additionalProperties": false
+      }
+    },
+
+    "checks_to_run": {
+      "type": "array",
+      "minItems": 1,
+      "description": "Verification checks the merchant (or the system) should confirm before acting. For HYPOTHESIS cards these are the primary output; for RECOMMENDATION cards they represent pre-action validation steps.",
+      "items": {
+        "type": "object",
+        "required": ["check_id", "description", "why"],
+        "properties": {
+          "check_id": {
+            "type": "string",
+            "description": "Unique check identifier."
+          },
+          "description": {
+            "type": "string",
+            "description": "What to check."
+          },
+          "why": {
+            "type": "string",
+            "description": "Why this check is needed."
+          },
+          "confirm_if": {
+            "type": "string",
+            "description": "The condition that confirms this check passes."
+          },
+          "status": {
+            "type": "string",
+            "enum": ["pending", "confirmed", "failed", "skipped"],
+            "description": "Runtime status of this check (filled in during or after execution)."
+          }
+        },
+        "additionalProperties": false
+      }
+    },
+
+    "recommendations": {
+      "type": "array",
+      "minItems": 1,
+      "description": "Priority-ordered list of recommended actions for the merchant. Priority 1 is the highest-urgency, highest-confidence action.",
+      "items": {
+        "type": "object",
+        "required": ["priority", "action_type", "recommendation", "automation_level"],
+        "properties": {
+          "priority": {
+            "type": "integer",
+            "minimum": 1,
+            "description": "Execution priority (1 = act first)."
+          },
+          "action_type": {
+            "type": "string",
+            "description": "Machine-readable action identifier (SCREAMING_SNAKE_CASE)."
+          },
+          "recommendation": {
+            "type": "string",
+            "description": "Specific, actionable recommendation text. Must be specific (what exactly to do), diagnostic (why this action), and tied to the observed pattern."
+          },
+          "automation_level": {
+            "type": "string",
+            "enum": ["automated", "semi_automated", "warn_only", "operator_only"],
+            "description": "How much human review is required before this action executes."
+          },
+          "preconditions": {
+            "type": "array",
+            "items": { "type": "string" },
+            "description": "Named conditions that must be met before this action is valid."
+          }
+        },
+        "additionalProperties": false
+      }
+    },
+
+    "why": {
+      "type": "string",
+      "description": "Plain-language explanation of why these recommendations are the right response to this pattern. This is the 'compelling' component: what makes it worth acting on now."
+    },
+
+    "why_not": {
+      "type": "array",
+      "description": "Explicit list of actions the merchant should NOT take, with reasons. Prevents common over-reactions or misdiagnoses.",
+      "items": {
+        "type": "object",
+        "required": ["action_type", "reason"],
+        "properties": {
+          "action_type": {
+            "type": "string",
+            "description": "The action to avoid."
+          },
+          "reason": {
+            "type": "string",
+            "description": "Why taking this action would be wrong or counterproductive in this context."
+          }
+        },
+        "additionalProperties": false
+      }
+    },
+
+    "risk_notes": {
+      "type": "array",
+      "description": "Caveats, assumptions, or risk flags the merchant should be aware of before acting.",
+      "items": {
+        "type": "string"
+      }
+    },
+
+    "confidence": {
+      "type": "string",
+      "enum": ["high", "medium", "low"],
+      "description": "Overall confidence in the diagnosis and recommendations, given the available evidence at run time."
+    },
+
+    "expected_impact_proxy": {
+      "type": "object",
+      "description": "The expected business outcome if the merchant follows the recommendations. Expressed as a proxy when exact ROI is unavailable.",
+      "required": ["description"],
+      "properties": {
+        "description": {
+          "type": "string",
+          "description": "One-to-two sentence impact statement tied to observable business metrics."
+        },
+        "key_metrics": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "The metrics expected to improve (e.g. CAC, repurchase_rate, contribution_margin)."
+        },
+        "estimated_improvement": {
+          "type": "string",
+          "description": "Directional magnitude estimate (e.g. '-15% CAC over 30 days', '+20pp repurchase rate within one cycle')."
+        }
+      },
+      "additionalProperties": false
+    },
+
+    "validation_status": {
+      "type": "string",
+      "enum": ["RECOMMENDATION", "HYPOTHESIS", "INSUFFICIENT_DATA"],
+      "description": "RECOMMENDATION: sufficient evidence to act confidently. HYPOTHESIS: surface checks and likely causes only, do not act yet. INSUFFICIENT_DATA: required data sources missing; escalate or defer."
+    }
+  },
+  "additionalProperties": false
+}

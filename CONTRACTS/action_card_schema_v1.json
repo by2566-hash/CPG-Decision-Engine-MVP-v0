@@ -1,0 +1,181 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://internal/cpg-decision-engine/action_card_schema.v1.json",
+  "title": "Action Card Schema v1",
+  "description": "Upgraded schema for action cards emitted by the policy engine. Backward-compatible with v0 action cards (all new fields are optional, preserving existing CSV/JSONL outputs). New fields carry the diagnostic chain, confidence, playbook linkage, and expected impact needed to build merchant decision cards and improve LLM prompt grounding.",
+  "type": "object",
+  "required": [
+    "id",
+    "run_id",
+    "policy_version",
+    "action_type",
+    "parameter_value",
+    "policy_passed",
+    "evidence",
+    "constraints_applied"
+  ],
+  "properties": {
+
+    "id": {
+      "type": "string",
+      "description": "Unique action card identifier (act_<hex>). Foreign key into telemetry audit log."
+    },
+    "run_id": {
+      "type": "string",
+      "description": "Pipeline run identifier. Links to run_receipt.json."
+    },
+    "policy_version": {
+      "type": "string",
+      "description": "Version of the policy rules that produced this card."
+    },
+    "action_type": {
+      "type": "string",
+      "enum": ["DISCOUNT", "BUNDLE", "REMINDER_NO_DISCOUNT", "NO_ACTION"],
+      "description": "The action the policy engine decided to take."
+    },
+    "parameter_value": {
+      "type": "number",
+      "minimum": 0.0,
+      "maximum": 1.0,
+      "description": "The parameter associated with the action (e.g. discount fraction 0.15 = 15%)."
+    },
+    "policy_passed": {
+      "type": "boolean",
+      "description": "True if all hard constraints passed and an actionable offer was emitted."
+    },
+    "expected_value_proxy": {
+      "type": "number",
+      "description": "Rough proxy for expected monetary value of this action (discount_pct * m_proxy_value)."
+    },
+    "evidence": {
+      "description": "Key-value evidence dict used by the policy engine and passed to the LLM for grounding. May be a JSON string (v0 CSV) or an object.",
+      "oneOf": [
+        {
+          "type": "object",
+          "additionalProperties": true
+        },
+        {
+          "type": "string",
+          "description": "JSON-encoded evidence object (v0 CSV serialisation)."
+        }
+      ]
+    },
+    "constraints_applied": {
+      "description": "List of constraint check results. May be a JSON string (v0 CSV) or an array.",
+      "oneOf": [
+        {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["rule", "value", "check"],
+            "properties": {
+              "rule": { "type": "string" },
+              "value": {},
+              "check": { "type": "string" }
+            },
+            "additionalProperties": false
+          }
+        },
+        {
+          "type": "string",
+          "description": "JSON-encoded constraints array (v0 CSV serialisation)."
+        }
+      ]
+    },
+    "llm_explanation": {
+      "type": "string",
+      "description": "Inline explanation stub (v0 field). Kept for backward compatibility; superseded by diagnostic_logic in v1."
+    },
+
+    "rule_id": {
+      "type": "string",
+      "description": "(v1) The playbook rule that produced this action card.",
+      "pattern": "^rule_[a-z0-9_]+$"
+    },
+    "priority": {
+      "type": "integer",
+      "minimum": 1,
+      "description": "(v1) Action priority rank within the rule's suggested_actions list. 1 = highest urgency."
+    },
+    "automation_level": {
+      "type": "string",
+      "enum": ["automated", "semi_automated", "warn_only", "operator_only"],
+      "description": "(v1) How much human review is required before this action executes."
+    },
+    "confidence": {
+      "type": "string",
+      "enum": ["high", "medium", "low"],
+      "description": "(v1) Diagnostic confidence level derived from data completeness and signal strength."
+    },
+    "validation_status": {
+      "type": "string",
+      "enum": ["RECOMMENDATION", "HYPOTHESIS", "INSUFFICIENT_DATA"],
+      "description": "(v1) Whether this card should be treated as an actionable recommendation or a hypothesis requiring further checks."
+    },
+    "diagnostic_logic": {
+      "type": "object",
+      "description": "(v1) Condensed diagnostic chain attached to this action card for use in merchant decision card generation and LLM grounding.",
+      "properties": {
+        "pattern_detected": {
+          "type": "string",
+          "description": "One-line name of the pattern that fired."
+        },
+        "diagnosis_summary": {
+          "type": "string",
+          "description": "Why this pattern fired for this specific entity (merchant-readable)."
+        },
+        "evidence_chain": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["step", "observation", "implication"],
+            "properties": {
+              "step": { "type": "integer", "minimum": 1 },
+              "observation": { "type": "string" },
+              "implication": { "type": "string" },
+              "data_source": { "type": "string" },
+              "observed_value": {}
+            },
+            "additionalProperties": false
+          }
+        },
+        "checks_completed": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["check_id", "status"],
+            "properties": {
+              "check_id": { "type": "string" },
+              "status": {
+                "type": "string",
+                "enum": ["confirmed", "failed", "skipped", "pending"]
+              },
+              "observed_value": {}
+            },
+            "additionalProperties": false
+          }
+        }
+      },
+      "additionalProperties": false
+    },
+    "do_not_recommend": {
+      "type": "array",
+      "description": "(v1) Action types explicitly forbidden for this card instance (inherited from the playbook).",
+      "items": { "type": "string" }
+    },
+    "expected_impact_proxy": {
+      "type": "object",
+      "description": "(v1) Expected business outcome from this specific action card.",
+      "properties": {
+        "description": { "type": "string" },
+        "key_metrics": {
+          "type": "array",
+          "items": { "type": "string" }
+        },
+        "estimated_improvement": { "type": "string" }
+      },
+      "additionalProperties": false
+    }
+  },
+  "additionalProperties": false
+}

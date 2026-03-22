@@ -2,22 +2,25 @@ import json
 from deterministic_fallback_engine import get_fallback_copy
 from telemetry_audit_logger import log_audit_event
 
-def process_action_card(action_card: dict, llm_response_text: str, validator, mock_latency_ms: int = 150):
+def process_action_card(action_card: dict, llm_response_text: str, validator, mock_latency_ms: int = 150, decision_card=None):
     """
-    Runs the 4-gate validator. 
+    Runs the 4-gate validator (+ optional Gate E when decision_card is provided).
     If PASS, uses LLM copy and hydrates placeholders.
     If REJECT, uses deterministic fallback and logs the failure.
-    Returns the final output JSON layout.
+    Returns the final output JSON layout, including 'merchant_explanation' when
+    the LLM response passed validation and the field is present.
     """
-    
+
     trade_id = action_card["id"]
-    errors = validator.validate(llm_response_text, action_card)
-    
+    errors = validator.validate(llm_response_text, action_card, decision_card=decision_card)
+
+    merchant_explanation = None
     if not errors:
         # Passed!
         llm_json = json.loads(llm_response_text)
         final_channel = llm_json["copy"].get("channel", "sms")
         final_body = llm_json["copy"].get("body_template", "")
+        merchant_explanation = llm_json.get("merchant_explanation")
         fallback_used = False
         validation_result = "PASS"
         final_source = "LLM_GENERATED"
@@ -54,13 +57,16 @@ def process_action_card(action_card: dict, llm_response_text: str, validator, mo
     )
 
     # Return Output Format
-    return {
+    result = {
         "action_trade_id": trade_id,
         "policy_echo": {
             "action_type": action_card.get("action_type"),
-            "discount_pct": action_card.get("parameter_value")
+            "discount_pct": action_card.get("parameter_value"),
         },
         "final_llm_copy": hydrated_body,
         "channel": final_channel,
-        "validation_status": "FALLBACK" if fallback_used else "PASS"
+        "validation_status": "FALLBACK" if fallback_used else "PASS",
     }
+    if merchant_explanation is not None:
+        result["merchant_explanation"] = merchant_explanation
+    return result

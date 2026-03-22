@@ -1,0 +1,401 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://internal/cpg-decision-engine/playbook_schema.v1.json",
+  "title": "Playbook / Rule Object Schema v1",
+  "description": "Canonical schema for reusable decision-engine rule/playbook objects. Each playbook encodes one pattern: its trigger, diagnostic chain, recommended actions, guardrails, and expected impact. Playbooks are the machine-readable source of truth for what the engine detects, why, and what it does about it.",
+  "type": "object",
+  "required": [
+    "rule_id",
+    "version",
+    "module",
+    "context",
+    "problem_pattern",
+    "trigger",
+    "diagnostic_logic",
+    "diagnosis_summary",
+    "likely_causes",
+    "checks_to_run",
+    "suggested_actions",
+    "expected_impact_proxy",
+    "do_not_recommend",
+    "common_ai_failure_modes",
+    "confidence",
+    "validation_status",
+    "action_lever"
+  ],
+  "properties": {
+    "rule_id": {
+      "type": "string",
+      "description": "Unique, stable identifier for this rule. Used as a foreign key in action cards and decision cards.",
+      "pattern": "^rule_[a-z0-9_]+$"
+    },
+    "version": {
+      "type": "string",
+      "description": "Semantic version of this rule definition (e.g. '1.0', '1.1')."
+    },
+
+    "module": {
+      "type": "object",
+      "description": "Domain taxonomy locating this rule within the broader decision-engine module hierarchy.",
+      "required": ["primary", "domain", "business_model"],
+      "properties": {
+        "primary": {
+          "type": "string",
+          "description": "Primary module this rule belongs to (e.g. customer_retention, acquisition_efficiency)."
+        },
+        "secondary": {
+          "type": "string",
+          "description": "Optional secondary module (e.g. conversion_merchandising)."
+        },
+        "domain": {
+          "type": "string",
+          "description": "Business domain (e.g. customer_lifecycle, marketing_operations)."
+        },
+        "business_model": {
+          "type": "string",
+          "description": "Target business model (e.g. cpg_dtc_subscription, cpg_dtc_omnichannel)."
+        },
+        "vertical": {
+          "type": "string",
+          "description": "Industry vertical (e.g. food_beverage_consumable)."
+        },
+        "channels": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "Data/marketing channels relevant to this rule (e.g. meta_ads, ga4, sms)."
+        },
+        "entities": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "Business entities involved (e.g. customer, product, campaign, ad_set)."
+        }
+      },
+      "additionalProperties": false
+    },
+
+    "context": {
+      "type": "object",
+      "description": "Qualitative context about where and when this rule applies.",
+      "required": ["merchant_type"],
+      "properties": {
+        "merchant_type": {
+          "type": "string",
+          "description": "Description of the merchant archetype this rule targets."
+        },
+        "applies_broadly_to": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "List of merchant types or scenarios this rule generalizes to."
+        },
+        "products_in_scope": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "Product types or specific SKUs in scope for this rule."
+        },
+        "notes": {
+          "type": "string",
+          "description": "Free-text context notes (assumptions, caveats, prerequisites)."
+        }
+      },
+      "additionalProperties": false
+    },
+
+    "problem_pattern": {
+      "type": "object",
+      "description": "The observable business pattern this rule is designed to detect.",
+      "required": ["name", "business_risk"],
+      "properties": {
+        "name": {
+          "type": "string",
+          "description": "Machine-readable pattern name (snake_case)."
+        },
+        "business_risk": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "type": "string" },
+          "description": "Business consequences of this pattern going unaddressed."
+        },
+        "observations": {
+          "type": "object",
+          "description": "Optional quantitative baseline observations (before/during/after, or thresholds).",
+          "additionalProperties": true
+        }
+      },
+      "additionalProperties": false
+    },
+
+    "trigger": {
+      "type": "object",
+      "description": "Conditions that must all be satisfied for this rule to fire.",
+      "required": ["conditions", "description"],
+      "properties": {
+        "conditions": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "object",
+            "required": ["metric", "op", "value"],
+            "properties": {
+              "metric": {
+                "type": "string",
+                "description": "The metric or field being evaluated."
+              },
+              "op": {
+                "type": "string",
+                "description": "Comparison operator (>=, >, <=, <, ==, !=, >_ref)."
+              },
+              "value": {
+                "description": "Threshold value (numeric) or reference metric name (string)."
+              },
+              "relative_to": {
+                "type": "string",
+                "description": "Baseline or reference period the comparison is relative to."
+              }
+            },
+            "additionalProperties": false
+          }
+        },
+        "description": {
+          "type": "string",
+          "description": "Human-readable explanation of when and why this rule fires."
+        }
+      },
+      "additionalProperties": false
+    },
+
+    "diagnostic_logic": {
+      "type": "object",
+      "description": "Structured diagnostic chain: the ordered sequence of observations and implications that lead from detected pattern to root cause.",
+      "required": ["evidence_chain"],
+      "properties": {
+        "evidence_chain": {
+          "type": "array",
+          "minItems": 1,
+          "description": "Ordered chain of evidence steps. Each step is one inferential move from data to implication.",
+          "items": {
+            "type": "object",
+            "required": ["step", "observation", "implication"],
+            "properties": {
+              "step": {
+                "type": "integer",
+                "minimum": 1,
+                "description": "Sequence number (1 = first step)."
+              },
+              "observation": {
+                "type": "string",
+                "description": "What the data shows at this step."
+              },
+              "implication": {
+                "type": "string",
+                "description": "What this observation implies about the root cause or next diagnostic step."
+              },
+              "data_source": {
+                "type": "string",
+                "description": "Which data source or computation this observation comes from."
+              }
+            },
+            "additionalProperties": false
+          }
+        },
+        "required_data_sources": {
+          "type": "object",
+          "description": "Data sources needed to run this diagnostic chain.",
+          "properties": {
+            "minimum_viable": {
+              "type": "array",
+              "items": { "type": "string" },
+              "description": "Minimum sources required to produce a RECOMMENDATION (vs HYPOTHESIS)."
+            },
+            "recommended": {
+              "type": "array",
+              "items": { "type": "string" },
+              "description": "Additional sources that improve diagnostic confidence."
+            }
+          },
+          "additionalProperties": false
+        }
+      },
+      "additionalProperties": false
+    },
+
+    "diagnosis_summary": {
+      "type": "string",
+      "description": "One-to-three sentence plain-language summary of the diagnosis. This is the 'because' sentence the merchant sees."
+    },
+
+    "likely_causes": {
+      "type": "array",
+      "minItems": 1,
+      "description": "Ranked list of likely root causes with individual confidence levels and supporting evidence.",
+      "items": {
+        "type": "object",
+        "required": ["cause", "confidence"],
+        "properties": {
+          "cause": {
+            "type": "string",
+            "description": "Plain-language description of this potential root cause."
+          },
+          "confidence": {
+            "type": "string",
+            "enum": ["high", "medium", "low"],
+            "description": "How strongly the available evidence supports this cause."
+          },
+          "supporting_evidence": {
+            "type": "string",
+            "description": "What data or pattern supports this cause hypothesis."
+          }
+        },
+        "additionalProperties": false
+      }
+    },
+
+    "checks_to_run": {
+      "type": "array",
+      "minItems": 1,
+      "description": "Ordered list of verification checks to run before acting (or to validate a hypothesis). If validation_status is HYPOTHESIS, these become the primary output.",
+      "items": {
+        "type": "object",
+        "required": ["check_id", "description", "why"],
+        "properties": {
+          "check_id": {
+            "type": "string",
+            "description": "Unique identifier for this check (snake_case)."
+          },
+          "description": {
+            "type": "string",
+            "description": "What to check."
+          },
+          "why": {
+            "type": "string",
+            "description": "Why this check is necessary before acting."
+          },
+          "confirm_if": {
+            "type": "string",
+            "description": "The condition that confirms this check passes (supports the diagnosis)."
+          },
+          "data_source": {
+            "type": "string",
+            "description": "Where to find the data for this check."
+          }
+        },
+        "additionalProperties": false
+      }
+    },
+
+    "suggested_actions": {
+      "type": "array",
+      "minItems": 1,
+      "description": "Priority-ordered list of recommended actions. Priority 1 is highest. All actions must pass preconditions before being emitted.",
+      "items": {
+        "type": "object",
+        "required": ["action_type", "priority", "recommendation", "automation_level"],
+        "properties": {
+          "action_type": {
+            "type": "string",
+            "description": "Machine-readable action identifier (SCREAMING_SNAKE_CASE). Must not appear in do_not_recommend."
+          },
+          "priority": {
+            "type": "integer",
+            "minimum": 1,
+            "description": "Execution priority (1 = act first)."
+          },
+          "recommendation": {
+            "type": "string",
+            "description": "Specific, actionable recommendation text shown to the merchant."
+          },
+          "preconditions": {
+            "type": "array",
+            "items": { "type": "string" },
+            "description": "Named conditions that must be met before this action can be emitted."
+          },
+          "automation_level": {
+            "type": "string",
+            "enum": ["automated", "semi_automated", "warn_only", "operator_only"],
+            "description": "How much human approval is required before this action executes."
+          }
+        },
+        "additionalProperties": false
+      }
+    },
+
+    "expected_impact_proxy": {
+      "type": "object",
+      "description": "Expected business impact if the suggested actions are followed. Expressed as a proxy when exact ROI cannot be computed.",
+      "required": ["description"],
+      "properties": {
+        "description": {
+          "type": "string",
+          "description": "Plain-language impact statement tied to business outcomes."
+        },
+        "key_metrics": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "Metric names that should move if the action is effective."
+        },
+        "estimated_improvement": {
+          "type": "string",
+          "description": "Directional estimate of improvement magnitude (e.g. '-15% CAC', '+20% repurchase rate')."
+        }
+      },
+      "additionalProperties": false
+    },
+
+    "do_not_recommend": {
+      "type": "array",
+      "description": "Explicit list of action types that must never be recommended when this rule fires, with reasoning. This is a hard guardrail for the policy engine and LLM.",
+      "items": {
+        "type": "object",
+        "required": ["action_type", "reason"],
+        "properties": {
+          "action_type": {
+            "type": "string",
+            "description": "The forbidden action type (SCREAMING_SNAKE_CASE)."
+          },
+          "reason": {
+            "type": "string",
+            "description": "Why this action must not be taken in this context."
+          }
+        },
+        "additionalProperties": false
+      }
+    },
+
+    "common_ai_failure_modes": {
+      "type": "array",
+      "description": "Known patterns where a weaker or un-grounded model is likely to produce incorrect diagnoses or recommendations. Used to harden LLM prompts.",
+      "items": {
+        "type": "object",
+        "required": ["failure_mode", "guard"],
+        "properties": {
+          "failure_mode": {
+            "type": "string",
+            "description": "Description of the failure pattern (what a weaker model would do wrong)."
+          },
+          "guard": {
+            "type": "string",
+            "description": "The countermeasure: what to check or enforce to prevent this failure."
+          }
+        },
+        "additionalProperties": false
+      }
+    },
+
+    "confidence": {
+      "type": "string",
+      "enum": ["high", "medium", "low"],
+      "description": "Overall confidence level of the diagnosis, given the available evidence. Drives validation_status: high/medium → RECOMMENDATION, low → HYPOTHESIS."
+    },
+
+    "validation_status": {
+      "type": "string",
+      "enum": ["RECOMMENDATION", "HYPOTHESIS", "INSUFFICIENT_DATA"],
+      "description": "Output mode for this rule instance. RECOMMENDATION = enough evidence to act. HYPOTHESIS = surface checks, not conclusions. INSUFFICIENT_DATA = required sources missing."
+    },
+
+    "action_lever": {
+      "type": "string",
+      "description": "The primary lever this rule pulls (e.g. replenishment_discount_nudge, ad_spend_reduction, landing_page_fix). Used for deduplication and lever-level budget controls."
+    }
+  },
+  "additionalProperties": false
+}
