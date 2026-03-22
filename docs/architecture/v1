@@ -1,0 +1,302 @@
+# CPG Decision Engine — V1 Architecture Blueprint
+
+> **Purpose:** Partner review & discussion document
+> **Status:** Design phase — open for feedback
+> **Date:** 2026-03-22
+
+---
+
+## 1. What We're Building
+
+An **Operating Intelligence Layer** for CPG brands — not a dashboard, not a chatbot.
+
+The system takes raw commerce data, identifies at-risk business patterns across 4 modules, and produces **merchant-facing Decision Cards** with specific, diagnostic, prioritized recommendations tied to business outcomes.
+
+**Core positioning:**
+- Codified expertise engine (playbooks as competitive moat)
+- Deterministic decisions, LLM for explanation only
+- Every recommendation is auditable, reversible, and margin-safe
+
+---
+
+## 2. System Architecture — 5 Layers
+
+```mermaid
+flowchart TB
+    SRC["🗄️  Data Sources\nPOS · CRM · Promo Logs · Web / App Events"]
+
+    subgraph L0["  Layer 0 — Data Foundation  "]
+        ES["Event Store\nDynamoDB + S3 + Timestream"]
+        CG["Commerce Graph\nDynamoDB ➜ Neptune V1+"]
+        FS["Feature Store\nPre-computed Signals"]
+    end
+
+    subgraph L1["  Layer 1 — Merchant State Machine (MSM)  "]
+        direction LR
+        A1["Acquisition\n🟢 HEALTHY"]
+        A2["Conversion\n🟡 WATCH"]
+        A3["Retention ✅\n🟠 DEGRADING"]
+        A4["Promotion\n🔴 CRITICAL"]
+        MSV["Merchant State Vector\n4 Dimensions × 4 States"]
+    end
+
+    subgraph L2["  Layer 2 — Tri-Pillar Decision Engine  "]
+        direction LR
+        subgraph KG["Pillar 1 · Knowledge Graph"]
+            PR["Playbook Registry\n4 Modules · N Patterns"]
+            DR["Domain Rules\nCPG Hard Constraints"]
+        end
+        subgraph ML["Pillar 2 · ML Engine  Phase-Gated"]
+            P1["Phase 1\nAnomaly Detection"]
+            P2["Phase 2\nRegression"]
+            P3["Phase 3\nContextual Bandit LinUCB"]
+        end
+        subgraph LLM2["Pillar 3 · LLM Controller"]
+            BR["Brain\nPython Deterministic"]
+            GW["5-Gate Bouncer\nSchema→Policy→Numeric\n→Safety→Grounding"]
+            MO["Mouth\nLLM Renderer Only"]
+        end
+        CMC["Cross-Module\nCorrelator\nAnti-Contradiction"]
+    end
+
+    subgraph L3["  Layer 3 — Action Safety  "]
+        direction LR
+        CC["CPG Hard Constraints\nMargin floor never relaxes\nDiscount = last resort"]
+        WP["Weekly Planner\nTop 3 Actions\nRanked by $ Impact"]
+        RR["Rollback Registry\nUndo Endpoint\n48h TTL"]
+    end
+
+    subgraph L4["  Layer 4 — Serving & Execution  "]
+        direction LR
+        DC["Decision Cards\nMerchant-Facing\nPattern→Evidence→Diagnosis\n→Checks→Recommendations"]
+        AL["Action Log\nShadow Mode\nDay 1 no execution needed"]
+        AT["Audit Trail\nFull Lineage\nAll Gates Logged"]
+    end
+
+    subgraph L5["  Layer 5 — Learning Loop  "]
+        direction LR
+        OT["Outcome Tracker\nA/B & Incrementality"]
+        BR2["Bandit Reward\nFeedback Signal"]
+        PF["Playbook Refinement\nCase Study to New Rule"]
+    end
+
+    SRC --> L0
+    L0 --> L1
+    L1 --> L2
+    L2 --> L3
+    L3 --> L4
+    L4 --> L5
+    L5 -.->|"Outcome feedback"| ML
+    L5 -.->|"New patterns to rules"| KG
+    AL -.->|"Training data"| P3
+```
+
+---
+
+## 3. Tri-Pillar Decision Engine — Zoom In
+
+```mermaid
+flowchart LR
+    IN["Merchant State Vector\n(MSM Output)"]
+
+    subgraph KG["Pillar 1 · Knowledge Graph"]
+        PB["Playbook Registry\nPattern matching\nDiagnostic rules"]
+        CGN["Commerce Graph\nProduct → Aisle → Dept\nCustomer segments"]
+        HC["Hard Constraints\nCPG domain rules\nForbidden actions"]
+    end
+
+    subgraph ML["Pillar 2 · ML Engine"]
+        P1["Phase 1\nIsolation Forest\nAnomaly detection"]
+        P2["Phase 2\nXGBoost\nChurn / uplift regression"]
+        P3["Phase 3\nLinUCB Bandit\nAdaptive action selection\nneeds action log data"]
+    end
+
+    subgraph LLM["Pillar 3 · LLM Controller"]
+        BRAIN["Brain Python\nDecision = deterministic\nPolicy engine rules"]
+        GATE["5-Gate Bouncer\n1 Schema valid\n2 Policy consistent\n3 No raw numerics\n4 No banned phrases\n5 Grounding verified"]
+        MOUTH["Mouth LLM\nRenders merchant copy\nNever decides only explains"]
+    end
+
+    CMC["Cross-Module\nCorrelator\nPrevents contradictions\nacross modules"]
+
+    OUT["Decision Card Bundle\n+ Weekly Planner\nTop 3 by dollar impact"]
+
+    IN --> KG
+    IN --> ML
+    KG -->|"Matched playbook + context"| BRAIN
+    ML -->|"Probability scores\nAnomaly signals"| BRAIN
+    BRAIN -->|"Structured decision"| GATE
+    GATE -->|"Validated"| MOUTH
+    MOUTH -->|"Merchant copy"| CMC
+    CMC --> OUT
+```
+
+---
+
+## 4. Single Decision Card — Generation Flow
+
+```mermaid
+sequenceDiagram
+    participant DS as Data Layer
+    participant MSM as Merchant State Machine
+    participant PB as Playbook Engine
+    participant PE as Policy Engine
+    participant LLM as LLM Bouncer
+    participant DC as Decision Card
+    participant AL as Action Log
+
+    DS->>MSM: Compute signals (RFM, overdue_ratio, inventory)
+    MSM->>MSM: Update dimension state (HEALTHY to CRITICAL)
+    MSM->>PB: Retention dimension DEGRADING
+    PB->>PB: Match pattern — load Playbook YAML
+    PB->>PE: Evidence + Playbook rules
+    PE->>PE: Check margin floor, inventory gate
+    PE->>DC: action_type=DISCOUNT, policy_passed=True
+    DC->>DC: Classify RECOMMENDATION or HYPOTHESIS
+    Note over DC: Product-level data = RECOMMENDATION<br/>Dept/Global data = HYPOTHESIS
+    DC->>LLM: Decision Card + evidence
+    LLM->>LLM: Gate 1 Schema valid
+    LLM->>LLM: Gate 2 Policy consistent
+    LLM->>LLM: Gate 3 No raw numerics
+    LLM->>LLM: Gate 4 No banned phrases
+    LLM->>LLM: Gate 5 Grounding verified
+    LLM->>DC: Merchant-facing copy appended
+    DC->>AL: Log to Action Log (shadow mode)
+    AL-->>LLM: Future training signal (Bandit reward)
+```
+
+---
+
+## 5. Module Coverage
+
+| Module | Status | Patterns | Actions |
+|--------|--------|----------|---------|
+| **Retention / Replenishment** | ✅ V0 Implemented | Overdue ratio, purchase gap | DISCOUNT, REMINDER, SUPPRESS |
+| **Acquisition Efficiency** | ⬜ Designed | CAC anomaly, channel attribution | REALLOCATE_BUDGET, PAUSE_CHANNEL |
+| **Conversion / Merchandising** | ⬜ Designed | Cart abandon, PDP drop-off | REORDER_SHELF, BUNDLE_SUGGEST |
+| **Promotion / Offer Strategy** | ⬜ Designed | Discount dependency, margin erosion | ROTATE_OFFER, HOLD_DISCOUNT |
+
+---
+
+## 6. RECOMMENDATION vs HYPOTHESIS Classification
+
+```mermaid
+flowchart LR
+    SRC["replenishment_source\ndata tier used"]
+
+    SRC -->|"Product-level\n5 or more purchase gaps"| R1["RECOMMENDATION\nconfidence = high"]
+    SRC -->|"Aisle-level\n5 or more gap observations"| R2["RECOMMENDATION\nconfidence = medium"]
+    SRC -->|"Department-level\nfallback"| H1["HYPOTHESIS\nconfidence = low"]
+    SRC -->|"Global Default\n30-day cycle"| H2["HYPOTHESIS\nconfidence = low"]
+
+    R1 --> ACT["Full recommendations\nSemi-automated actions"]
+    R2 --> ACT
+    H1 --> HYP["CONTINGENT ON CHECKS\nwarn_only automation\nManual validation required"]
+    H2 --> HYP
+```
+
+---
+
+## 7. CPG Hard Constraints (Non-Negotiable)
+
+Encoded in Playbook YAML — cannot be overridden by LLM or ML outputs.
+
+| Constraint | Rule | Reason |
+|---|---|---|
+| **Margin Floor** | Never discount below gross margin threshold | Direct P&L protection |
+| **Discount = Last Resort** | Offer REMINDER before DISCOUNT | Protect brand equity |
+| **Incrementality Required** | No discount without uplift attribution | Avoid subsidizing organic buyers |
+| **Cold Prospect Gate** | No discount offer to first-time visitors | Acquisition ≠ Retention lever |
+| **Attribution Window** | Retention 7d / Acquisition 30d / Promotion 14d | Different modules measure differently |
+| **Rollback TTL** | Every write action has undo endpoint, 48h window | Operator trust |
+
+---
+
+## 8. V0 → V1 Asset Mapping
+
+All V0 components are preserved and extended, not replaced.
+
+| V0 Component | V1 Position | Upgrade Needed |
+|---|---|---|
+| `compute_rfm.py` | Layer 0: Feature Store | Add streaming variant |
+| `compute_risk.py` | Layer 1: MSM (Retention dim) | Extend to 4 dimensions |
+| `policy_engine.py` | Layer 3: Action Safety | Add cross-module check |
+| `decision_card_builder.py` | Layer 2: LLM Controller output | Add module field |
+| `playbook_engine/` | Layer 2: KG Playbook Registry | Add 3 more modules |
+| `llm_safety_gateway.py` | Layer 2: 5-Gate Bouncer | Already in place |
+| `recommendation_scorer.py` | Layer 3: Quality scoring | Add $ impact proxy |
+| `telemetry_audit_logger.py` | Layer 4: Audit Trail | Already patchable |
+| `run_pipeline.py` | Layer 4: Serving orchestrator | Add MSM orchestration |
+
+---
+
+## 9. Phase Roadmap
+
+```mermaid
+gantt
+    title V1 Build Roadmap
+    dateFormat  YYYY-MM-DD
+    axisFormat  %b %Y
+
+    section Phase 1 — Foundation
+    Use Case x4 modules           :uc,  2026-03-22, 14d
+    Commerce Graph schema          :cg,  after uc,   14d
+    Pydantic Contracts v1          :ct,  after uc,   14d
+    MSM 4-dimension scaffold       :msm, after ct,   21d
+    3 new Playbooks YAML           :pb,  after ct,   21d
+
+    section Phase 2 — Intelligence
+    Anomaly detection Phase 1 ML   :ml1, after msm,  28d
+    Cross-module Correlator        :cmc, after pb,   14d
+    Weekly Planner                 :wp,  after cmc,  14d
+    Action Log shadow mode         :al,  after msm,  7d
+
+    section Phase 3 — Adaptive
+    Regression models Phase 2 ML   :ml2, after ml1,  28d
+    Bandit implementation Phase 3  :ml3, after ml2,  42d
+    Neptune migration              :nep, after ml2,  28d
+    Real LLM API integration       :llm, after ml1,  14d
+```
+
+---
+
+## 10. What We Borrowed & What We Added
+
+### Borrowed from Partner's Tri-Pillar Design
+- **Three-pillar separation**: KG / ML / LLM as distinct, coordinated pillars rather than monolithic AI
+- **Knowledge Graph as world model**: shared domain reality, not just a lookup table
+- **ML as probabilistic engine**: separate from rule-based logic, contributing probability scores
+
+### Original Innovations in This Design
+- **Brain-Mouth Decoupling**: Python makes all decisions, LLM only renders explanation — eliminates LLM slop
+- **RECOMMENDATION vs HYPOTHESIS** classification driven by data completeness tier
+- **5-Gate Bouncer**: structured validation before any LLM output reaches merchant
+- **Merchant State Machine 4D × 4 States**: merchant-level view, not customer×product granularity
+- **Cross-Module Correlator**: prevents contradictory actions across the 4 modules
+- **Action Log shadow mode from Day 1**: accumulates training data before execution is live
+- **Rollback Registry**: every write action has an undo endpoint — trust infrastructure
+- **Phase-gated ML**: Bandit stays dormant until action log provides sufficient data — no cold-start failure
+- **CPG Hard Constraints in Playbook YAML**: domain expertise as code, not embedded in prompts
+
+---
+
+## 11. Open Questions for Discussion
+
+1. **Commerce Graph granularity** — Start with `Product → Aisle → Dept` (existing) or add `Brand → Merchant` relationship from Day 1?
+
+2. **MSM trigger thresholds** — What signal combination flips a dimension from WATCH → DEGRADING? Needs data inventory to answer.
+
+3. **Action Log graduation criteria** — Shadow mode ends when? What volume of logged actions is enough before execution goes live?
+
+4. **Weekly Planner ranking** — Rank by expected revenue impact proxy, or confidence × impact composite? How to handle uncertainty in ranking?
+
+5. **Cross-module conflict resolution** — If Retention says DISCOUNT and Promotion says HOLD_DISCOUNT for the same product, who wins? Is priority order fixed or context-dependent?
+
+6. **LLM provider** — Anthropic Claude API (current architecture assumption) or should the 5-Gate Bouncer be provider-agnostic?
+
+7. **Merchant UX rendering** — Decision Cards are JSONL today. What is the target surface? Dashboard widget, email digest, or API endpoint for partner's frontend?
+
+---
+
+*V0 codebase is fully operational and all components map directly into this architecture.*
+*This document describes the V1 target state — V0 is the foundation, not replaced.*
