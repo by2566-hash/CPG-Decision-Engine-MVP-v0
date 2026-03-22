@@ -14,7 +14,6 @@ Coverage:
 """
 from __future__ import annotations
 
-import pytest
 from pathlib import Path
 
 from recommendation_scorer import (
@@ -336,7 +335,6 @@ class TestEdgeCases:
 
 class TestIntegrationWithBuilder:
     def test_build_single_decision_card_has_quality_score(self):
-        from pathlib import Path
         from playbook_engine import PlaybookLoader
         from decision_card_builder import build_single_decision_card
 
@@ -361,7 +359,6 @@ class TestIntegrationWithBuilder:
         assert 0.0 <= card["quality_score"] <= 1.0
 
     def test_build_single_decision_card_recs_have_quality_score(self):
-        from pathlib import Path
         from playbook_engine import PlaybookLoader
         from decision_card_builder import build_single_decision_card
 
@@ -384,7 +381,6 @@ class TestIntegrationWithBuilder:
             assert "quality_score" in rec
 
     def test_hypothesis_card_has_lower_score_than_recommendation(self):
-        from pathlib import Path
         from playbook_engine import PlaybookLoader
         from decision_card_builder import build_single_decision_card
 

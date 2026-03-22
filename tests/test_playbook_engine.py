@@ -11,7 +11,6 @@ Sections:
   5. TestIntegration        — real playbook files end-to-end
 """
 
-import dataclasses
 import json
 import os
 import tempfile
@@ -24,19 +23,12 @@ from playbook_engine import (
     PlaybookLoader,
     PlaybookValidationError,
 )
-from playbook_engine.evaluator import TriggerConditionResult
 from playbook_engine.models import (
-    AIFailureMode,
-    Check,
     Context,
     DiagnosticLogic,
-    DoNotRecommend,
     EvidenceStep,
-    ExpectedImpactProxy,
-    LikelyCause,
     Module,
     Playbook,
-    ProblemPattern,
     SuggestedAction,
     Trigger,
     TriggerCondition,

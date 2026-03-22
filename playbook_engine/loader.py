@@ -12,7 +12,7 @@ import sys
 from typing import Dict, List, Optional
 
 import yaml
-from jsonschema import Draft202012Validator, ValidationError
+from jsonschema import Draft202012Validator
 
 from .models import Playbook
 

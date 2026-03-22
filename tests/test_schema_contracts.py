@@ -17,10 +17,9 @@ Covers:
 
 import json
 import os
-import copy
 import pytest
 import yaml
-from jsonschema import validate, ValidationError, Draft202012Validator
+from jsonschema import validate, ValidationError
 
 
 # ---------------------------------------------------------------------------

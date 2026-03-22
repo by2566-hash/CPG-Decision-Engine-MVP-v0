@@ -14,7 +14,7 @@ from __future__ import annotations
 
 import dataclasses
 import operator as _operator
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from typing import Any, Dict, List, Optional
 
 from .models import (
@@ -132,7 +132,7 @@ class PlaybookEvaluation:
             f"PATTERN:  {self.pattern_detected}",
             f"CONFIDENCE: {self.confidence}  |  STATUS: {self.validation_status}",
             "",
-            f"DIAGNOSIS:",
+            "DIAGNOSIS:",
             f"  {self.diagnosis_summary.strip()}",
             "",
             "RECOMMENDED ACTIONS (priority order):",
